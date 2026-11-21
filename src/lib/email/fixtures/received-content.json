@@ -1,0 +1,65 @@
+{
+  "recv_fixture_0001": {
+    "from": "Alice Customer <alice@customer.example>",
+    "to": ["support@a.example"],
+    "cc": [],
+    "bcc": [],
+    "replyTo": [],
+    "subject": "Question about my order",
+    "text": "Hi, where is my order?",
+    "html": "<p onclick=\"steal()\">Hi, where is my order?</p><script>alert('xss')</script><img src=\"https://tracker.example/pixel.gif\" alt=\"\"><a href=\"javascript:alert(1)\">click</a>",
+    "headers": { "message-id": "<orig-0001@customer.example>" },
+    "messageId": "<orig-0001@customer.example>",
+    "receivedAt": "2026-11-20T10:00:00.000Z",
+    "attachments": [
+      { "providerAttachmentId": "att_fixture_1", "filename": "../../etc/receipt.pdf", "contentType": "application/pdf", "size": 11, "contentId": null, "disposition": "attachment" }
+    ]
+  },
+  "recv_fixture_0002": {
+    "from": "Bob Partner <bob@partner.example>",
+    "to": ["support@a.example", "hello@a.example"],
+    "cc": ["support@b.example"],
+    "bcc": [],
+    "replyTo": [],
+    "subject": "Joint announcement",
+    "text": "Big news for everyone.",
+    "html": null,
+    "headers": { "message-id": "<multi-0002@partner.example>" },
+    "messageId": "<multi-0002@partner.example>",
+    "receivedAt": "2026-11-20T10:05:00.000Z",
+    "attachments": []
+  },
+  "recv_fixture_0003": {
+    "from": "spammer@evil.example",
+    "to": ["nobody@a.example", "support@unknown.example"],
+    "cc": [],
+    "bcc": [],
+    "replyTo": [],
+    "subject": "You have won",
+    "text": "Click here",
+    "html": null,
+    "headers": {},
+    "messageId": "<unmatched-0003@evil.example>",
+    "receivedAt": "2026-11-20T10:10:00.000Z",
+    "attachments": []
+  },
+  "recv_fixture_0004": {
+    "from": "attacker@evil.example",
+    "to": ["support@a.example"],
+    "cc": [],
+    "bcc": [],
+    "replyTo": [],
+    "subject": "Routing attempt via headers",
+    "text": "Pretend I am for workspace B",
+    "html": null,
+    "headers": {
+      "message-id": "<spoof-0004@evil.example>",
+      "delivered-to": "support@b.example",
+      "x-original-to": "support@b.example",
+      "x-workspace": "workspace-b"
+    },
+    "messageId": "<spoof-0004@evil.example>",
+    "receivedAt": "2026-11-20T10:15:00.000Z",
+    "attachments": []
+  }
+}

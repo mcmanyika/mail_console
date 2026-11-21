@@ -1,0 +1,50 @@
+{
+  "name": "mail_console",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "db:start": "supabase start",
+    "db:reset": "supabase db reset",
+    "//db:reset": "Rebuilds the LOCAL Supabase DB: applies supabase/migrations/*.sql then supabase/seed.sql (demo data). Destructive; never point at a hosted project. Requires Docker + supabase CLI. Run with DEMO_MODE=true.",
+    "admin:promote": "node scripts/promote-platform-admin.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.2",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "lucide-react": "^1.77.0",
+    "nanoid": "^6.0.2",
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "resend": "^6.39.0",
+    "sanitize-html": "^2.18.2",
+    "svix": "^2.11.0",
+    "tailwind-merge": "^3.7.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/sanitize-html": "^2.16.2",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "tailwindcss": "4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^3.2.4"
+  }
+}

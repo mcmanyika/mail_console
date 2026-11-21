@@ -1,0 +1,11 @@
+{
+  "type": "email.delivered",
+  "created_at": "2026-11-20T11:00:10.000Z",
+  "data": {
+    "email_id": "__PROVIDER_EMAIL_ID__",
+    "from": "support@a.example",
+    "to": ["customer@customer.example"],
+    "subject": "Re: Question about my order",
+    "created_at": "2026-11-20T11:00:10.000Z"
+  }
+}

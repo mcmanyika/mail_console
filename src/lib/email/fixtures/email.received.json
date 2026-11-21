@@ -1,0 +1,23 @@
+{
+  "type": "email.received",
+  "created_at": "2026-11-20T10:00:00.000Z",
+  "data": {
+    "email_id": "recv_fixture_0001",
+    "created_at": "2026-11-20T10:00:00.000Z",
+    "from": "Alice Customer <alice@customer.example>",
+    "to": ["support@a.example"],
+    "cc": [],
+    "bcc": [],
+    "message_id": "<orig-0001@customer.example>",
+    "subject": "Question about my order",
+    "attachments": [
+      {
+        "id": "att_fixture_1",
+        "filename": "../../etc/receipt.pdf",
+        "content_type": "application/pdf",
+        "content_disposition": "attachment",
+        "content_id": null
+      }
+    ]
+  }
+}

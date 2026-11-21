@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+/*
+ * Mail Console design tokens.
+ * Cool gray canvas, white panels, navy ink, hairline borders, one restrained
+ * indigo for primary actions. Light only — this is a daytime work tool.
+ */
+:root {
+  --canvas: #f3f4f6;
+  --canvas-deep: #eef1f5;
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --ink: #0f1b2d;
+  --ink-2: #1e293b;
+  --muted: #64748b;
+  --muted-2: #94a3b8;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff;
+  --accent-ink: #3730a3;
+  --success: #15803d;
+  --success-soft: #ecfdf3;
+  --warn: #b45309;
+  --warn-soft: #fffbeb;
+  --danger: #b91c1c;
+  --danger-soft: #fef2f2;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-canvas-deep: var(--canvas-deep);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-muted-2: var(--muted-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --font-sans: var(--font-plex-sans), ui-sans-serif, "Helvetica Neue", sans-serif;
+  --font-serif: var(--font-source-serif), ui-serif, Georgia, serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --shadow-panel: 0 1px 0 rgb(15 27 45 / 0.03), 0 1px 3px rgb(15 27 45 / 0.04);
+  --shadow-pop: 0 12px 32px -8px rgb(15 27 45 / 0.18), 0 2px 6px rgb(15 27 45 / 0.06);
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: #c7d2fe;
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Thin, quiet scrollbars for list/reading panes. */
+.scroll-quiet {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+dialog::backdrop {
+  background: rgb(15 27 45 / 0.45);
+}
+
+@keyframes mc-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.mc-pulse {
+  animation: mc-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-pulse {
+    animation: none;
+  }
+}
