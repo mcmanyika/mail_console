@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { writeAudit } from "@/lib/audit";
 import { requireMailboxAccess } from "@/lib/auth/authz";
 import { requireWorkspaceAction } from "@/lib/data/workspace";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { formString } from "./guard";
 
 function safeReturn(slug: string, to: string | undefined): string {
   const base = `/w/${slug}/inbox`;
@@ -75,4 +77,63 @@ export async function discardDraftAction(slug: string, draftId: string, formData
   }
   revalidatePath(`/w/${slug}`, "layout");
   redirect(`/w/${slug}/inbox?folder=drafts`);
+}
+
+/**
+ * Permanently delete a conversation (all messages + attachments) from a mailbox
+ * the caller can read. Uses the service role after the grant check — RLS only
+ * allows deleting one's own drafts.
+ */
+export async function deleteThreadAction(formData: FormData): Promise<void> {
+  const slug = formString(formData, "slug");
+  const threadId = formString(formData, "threadId");
+  const returnTo = formString(formData, "returnTo");
+  if (!slug || !threadId) throw new Error("Missing conversation");
+
+  const ctx = await requireWorkspaceAction({ slug });
+  const admin = createAdminClient();
+  const { data: thread } = await admin
+    .from("threads")
+    .select("id, mailbox_id, workspace_id, subject")
+    .eq("id", threadId)
+    .eq("workspace_id", ctx.workspace.id)
+    .maybeSingle();
+  if (!thread) throw new Error("Conversation not found");
+
+  await requireMailboxAccess(ctx.supabase, ctx.user.id, thread.mailbox_id, "read");
+
+  const { data: messages } = await admin
+    .from("messages")
+    .select("id")
+    .eq("thread_id", threadId)
+    .eq("workspace_id", ctx.workspace.id);
+  const messageIds = (messages ?? []).map((m) => m.id);
+
+  let storagePaths: string[] = [];
+  if (messageIds.length) {
+    const { data: atts } = await admin.from("attachments").select("storage_path").in("message_id", messageIds);
+    storagePaths = (atts ?? []).map((a) => a.storage_path).filter(Boolean);
+  }
+
+  const { error } = await admin.from("threads").delete().eq("id", threadId).eq("workspace_id", ctx.workspace.id);
+  if (error) throw new Error(error.message);
+
+  if (storagePaths.length) {
+    await admin.storage
+      .from("attachments")
+      .remove(storagePaths)
+      .catch(() => undefined);
+  }
+
+  await writeAudit(admin, {
+    workspaceId: ctx.workspace.id,
+    actorUserId: ctx.user.id,
+    action: "thread.deleted",
+    resourceType: "thread",
+    resourceId: threadId,
+    metadata: { mailboxId: thread.mailbox_id, messageCount: messageIds.length },
+  });
+
+  revalidatePath(`/w/${slug}`, "layout");
+  redirect(safeReturn(slug, returnTo || undefined));
 }

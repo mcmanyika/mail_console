@@ -1,10 +1,11 @@
-import { AlertCircle, Archive, ArrowLeft, Download, File, Forward, MailOpen, Paperclip, Reply, ReplyAll, Undo2 } from "lucide-react";
+import { AlertCircle, Archive, ArrowLeft, Download, File, Forward, MailOpen, Paperclip, Reply, ReplyAll, Trash2, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { Alert } from "@/components/ui/alert";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/ui/confirm-dialog";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { archiveThreadAction, markUnreadAction } from "@/lib/actions/inbox";
+import { archiveThreadAction, deleteThreadAction, markUnreadAction } from "@/lib/actions/inbox";
 import type { ThreadDetail, ThreadMessage } from "@/lib/data/inbox";
 import { sanitizeEmailHtml } from "@/lib/email/sanitize";
 import { displayName, formatBytes, formatFullDate, initials } from "@/lib/format";
@@ -86,6 +87,29 @@ export function ThreadView({
               <MailOpen className="size-4" aria-hidden /> Mark unread
             </SubmitButton>
           </form>
+          <ConfirmButton
+            action={deleteThreadAction}
+            hiddenFields={{ slug, threadId: detail.thread.id, returnTo }}
+            triggerLabel={
+              <>
+                <Trash2 className="size-4" aria-hidden /> Delete
+              </>
+            }
+            triggerVariant="danger-ghost"
+            triggerSize="sm"
+            title="Delete this conversation?"
+            confirmLabel="Delete permanently"
+            description={
+              <>
+                <p>
+                  This permanently removes all {messages.length}{" "}
+                  {messages.length === 1 ? "message" : "messages"} in this conversation, including attachments, for
+                  everyone with access to this mailbox.
+                </p>
+                <p className="mt-2">This cannot be undone.</p>
+              </>
+            }
+          />
         </div>
       </header>
 
