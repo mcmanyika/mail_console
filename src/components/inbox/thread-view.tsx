@@ -14,6 +14,7 @@ import type { DeliveryState } from "@/lib/types/database";
 import { cn } from "@/lib/utils";
 import { EmailBody } from "./email-body";
 import { MarkReadOnView } from "./mark-read";
+import { ThreadAiSummary } from "./thread-ai-summary";
 
 const deliveryUi: Partial<Record<DeliveryState, { label: string; tone: Tone }>> = {
   pending: { label: "Pending", tone: "neutral" },
@@ -32,12 +33,14 @@ export function ThreadView({
   backHref,
   returnTo,
   mailboxId,
+  aiEnabled = false,
 }: {
   slug: string;
   detail: ThreadDetail;
   backHref: string;
   returnTo: string;
   mailboxId: string | null;
+  aiEnabled?: boolean;
 }) {
   const { messages, canSend } = detail;
   const last = messages[messages.length - 1];
@@ -56,6 +59,7 @@ export function ThreadView({
           {messages.length} {messages.length === 1 ? "message" : "messages"} · via {detail.mailboxAddress}
           {detail.permission === "read" ? " · read-only access" : ""}
         </p>
+        {aiEnabled ? <ThreadAiSummary slug={slug} threadId={detail.thread.id} /> : null}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {target ? (
             canSend ? (

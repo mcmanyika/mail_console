@@ -120,6 +120,24 @@ export async function getTemplates(ctx: WorkspaceContext): Promise<EmailTemplate
   return data ?? [];
 }
 
+// ---- AI assist ---------------------------------------------------------------------------------------
+export async function getAiSettings(ctx: WorkspaceContext) {
+  const month = currentYearMonth();
+  const { data: usage } = await ctx.supabase
+    .from("monthly_ai_usage")
+    .select("request_count")
+    .eq("workspace_id", ctx.workspace.id)
+    .eq("year_month", month)
+    .maybeSingle();
+  return {
+    enabled: ctx.workspace.ai_enabled,
+    instructions: ctx.workspace.ai_instructions ?? "",
+    monthlyLimit: ctx.workspace.monthly_ai_limit,
+    used: usage?.request_count ?? 0,
+    month,
+  };
+}
+
 // ---- integrations ------------------------------------------------------------------------------------
 export async function getIntegrations(ctx: WorkspaceContext) {
   const { data, error } = await ctx.supabase

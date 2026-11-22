@@ -170,5 +170,15 @@ async function ReadingPane({
       />
     );
   }
-  return <ThreadView slug={slug} detail={result.detail} backHref={listPath} returnTo={listPath} mailboxId={mailboxId} />;
+  const { workspace } = await getWorkspaceContext(slug);
+  return (
+    <ThreadView
+      slug={slug}
+      detail={result.detail}
+      backHref={listPath}
+      returnTo={listPath}
+      mailboxId={mailboxId}
+      aiEnabled={workspace.ai_enabled}
+    />
+  );
 }

@@ -9,8 +9,26 @@ import { FakeDb } from "./fake-admin";
 export function seedWorld(db = new FakeDb()) {
   const id = (n: string) => `00000000-0000-4000-8000-${n.padStart(12, "0")}`;
 
-  const wsA = db.seed("workspaces", { id: id("a1"), name: "Workspace A", slug: "ws-a", status: "active", monthly_sending_limit: 100 });
-  const wsB = db.seed("workspaces", { id: id("b1"), name: "Workspace B", slug: "ws-b", status: "active", monthly_sending_limit: 100 });
+  const wsA = db.seed("workspaces", {
+    id: id("a1"),
+    name: "Workspace A",
+    slug: "ws-a",
+    status: "active",
+    monthly_sending_limit: 100,
+    ai_enabled: false,
+    ai_instructions: null,
+    monthly_ai_limit: 200,
+  });
+  const wsB = db.seed("workspaces", {
+    id: id("b1"),
+    name: "Workspace B",
+    slug: "ws-b",
+    status: "active",
+    monthly_sending_limit: 100,
+    ai_enabled: false,
+    ai_instructions: null,
+    monthly_ai_limit: 200,
+  });
 
   const domA = db.seed("domains", { id: id("da"), workspace_id: wsA.id, hostname: "a.example", send_status: "verified", inbound_status: "verified", resend_domain_id: "mock_domain_a" });
   const domB = db.seed("domains", { id: id("db"), workspace_id: wsB.id, hostname: "b.example", send_status: "verified", inbound_status: "verified", resend_domain_id: "mock_domain_b" });

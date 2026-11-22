@@ -6,7 +6,7 @@ import { z } from "zod";
 import { writeAudit } from "@/lib/audit";
 import { generateInviteToken } from "@/lib/crypto/api-keys";
 import { requirePlatformAdminAction } from "@/lib/data/workspace";
-import { getAppUrl } from "@/lib/env";
+import { getRequestAppUrl } from "@/lib/env";
 import { slugify } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formString, guarded } from "./guard";
@@ -51,7 +51,8 @@ async function createInvitation(
     .select("id")
     .single();
   if (error || !data) throw new Error(error?.message ?? "invite insert failed");
-  return { id: data.id, url: `${getAppUrl()}/invite/${token}` };
+  const origin = await getRequestAppUrl();
+  return { id: data.id, url: `${origin}/invite/${token}` };
 }
 
 /** Add-client flow: create the workspace, set its limit, invite its owner. */

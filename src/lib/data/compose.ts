@@ -8,6 +8,8 @@ export type ComposeInit = {
   slug: string;
   mode: ComposeMode | "draft";
   parentId: string | null;
+  /** Set for reply/forward/resend/draft-in-thread so AI can suggest from the conversation. */
+  threadId: string | null;
   draftId: string | null;
   mailboxId: string;
   lockMailbox: boolean;
@@ -21,6 +23,7 @@ export type ComposeInit = {
   sendMailboxes: { id: string; address: string; label: string }[];
   templates: { id: string; name: string; subject: string; body: string }[];
   workspaceActive: boolean;
+  aiEnabled: boolean;
   heading: string;
 };
 
@@ -63,6 +66,7 @@ export async function loadCompose(
     sendMailboxes: sendable.map((m) => ({ id: m.id, address: m.address, label: m.displayName ? `${m.displayName} <${m.address}>` : m.address })),
     templates: (tpls ?? []).map((t) => ({ id: t.id, name: t.name, subject: t.subject, body: t.body_text ?? "" })),
     workspaceActive: ctx.workspace.status === "active",
+    aiEnabled: ctx.workspace.ai_enabled,
   };
 
   // ---- existing draft ----
@@ -90,6 +94,7 @@ export async function loadCompose(
         ...base,
         mode: "draft",
         parentId: null,
+        threadId: d.thread_id,
         draftId: d.id,
         mailboxId: d.mailbox_id,
         lockMailbox: d.thread_id !== null,
@@ -115,6 +120,7 @@ export async function loadCompose(
         ...base,
         mode: "new",
         parentId: null,
+        threadId: null,
         draftId: null,
         mailboxId: preferred.id,
         lockMailbox: false,
@@ -135,7 +141,7 @@ export async function loadCompose(
   // RLS only returns the message when the caller can read its mailbox.
   const { data: parent } = await supabase
     .from("messages")
-    .select("id, workspace_id, mailbox_id, direction, from_address, reply_to, subject, text_body, html_body, created_at, received_at, sent_at")
+    .select("id, workspace_id, mailbox_id, thread_id, direction, from_address, reply_to, subject, text_body, html_body, created_at, received_at, sent_at")
     .eq("id", params.message)
     .neq("direction", "draft")
     .maybeSingle();
@@ -162,7 +168,15 @@ export async function loadCompose(
   const addrs = (type: string) => (rcpts ?? []).filter((r) => r.type === type).map((r) => r.address);
   const attachments = (atts ?? []).map((a) => ({ id: a.id, filename: a.filename, size: Number(a.size_bytes) }));
 
-  const common = { ...base, parentId: parent.id, draftId: null, mailboxId: mailbox.id, bcc: "", attachments: [] as ComposeInit["attachments"] };
+  const common = {
+    ...base,
+    parentId: parent.id,
+    threadId: parent.thread_id,
+    draftId: null,
+    mailboxId: mailbox.id,
+    bcc: "",
+    attachments: [] as ComposeInit["attachments"],
+  };
 
   if (mode === "reply" || mode === "replyAll") {
     const replyTo = parent.direction === "inbound" ? [parseAddress(parent.reply_to || parent.from_address).email] : addrs("to");

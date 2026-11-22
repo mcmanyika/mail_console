@@ -6,6 +6,7 @@ apps send through a small API.
 
 * Inbound: Resend `email.received` webhook → sanitised, mailbox-scoped threads/messages/attachments.
 * Outbound: transactional **outbox** (quota reserve → queue → worker → provider with idempotency key → settle).
+* Optional **OpenAI assist**: summarize threads, suggest replies, improve drafts (mailbox-grant scoped; per-workspace toggle + monthly AI quota). Enable in **Settings → AI** after setting `OPENAI_API_KEY`.
 * API reference and curl examples: **[docs/api.md](docs/api.md)**.
 
 `DEMO_MODE=true` (the default in `.env.example`) uses a **mock Resend adapter**: no network calls to Resend and
@@ -73,6 +74,8 @@ Authoritative list with comments: [`.env.example`](.env.example).
 | `RESEND_ACCOUNT_LABEL` | optional | part of the webhook-event uniqueness key |
 | `CRON_SECRET` | yes | bearer secret for `/api/cron/outbox` (Vercel sends it automatically); unset → 503 |
 | `API_KEY_PEPPER` | yes | ≥ 32 random chars; rotating it invalidates all API keys + invites |
+| `OPENAI_API_KEY` | optional | enables inbox AI (summarize / suggest reply / improve); enable per workspace in Settings → AI |
+| `OPENAI_MODEL` | optional | default `gpt-4o-mini` |
 | `API_RATE_LIMIT_PER_MINUTE` | optional | default 60 per API key |
 | `OUTBOX_BATCH_SIZE`, `OUTBOX_MAX_ATTEMPTS`, `OUTBOX_LEASE_SECONDS`, `MAX_ATTACHMENT_BYTES` | optional | worker tuning |
 

@@ -67,6 +67,9 @@ export type WorkspaceRow = {
   slug: string;
   status: WorkspaceStatus;
   monthly_sending_limit: number;
+  ai_enabled: boolean;
+  ai_instructions: string | null;
+  monthly_ai_limit: number;
   created_at: string;
   updated_at: string;
 };
@@ -276,6 +279,13 @@ export type MonthlyUsageRow = {
   updated_at: string;
 };
 
+export type MonthlyAiUsageRow = {
+  workspace_id: string;
+  year_month: string;
+  request_count: number;
+  updated_at: string;
+};
+
 export type AuditLogRow = {
   id: string;
   workspace_id: string | null;
@@ -317,7 +327,10 @@ export type Database = {
     Tables: {
       profiles: TableDef<ProfileRow, Ts | "full_name">;
       platform_admins: TableDef<PlatformAdminRow, "created_at">;
-      workspaces: TableDef<WorkspaceRow, "id" | "status" | "monthly_sending_limit" | Ts>;
+      workspaces: TableDef<
+        WorkspaceRow,
+        "id" | "status" | "monthly_sending_limit" | "ai_enabled" | "ai_instructions" | "monthly_ai_limit" | Ts
+      >;
       workspace_memberships: TableDef<
         WorkspaceMembershipRow,
         "id" | "role" | Ts,
@@ -428,6 +441,7 @@ export type Database = {
         "id" | "provider" | "provider_account" | "status" | "error" | "received_at" | "processed_at" | "attempts" | "locked_at"
       >;
       monthly_usage: TableDef<MonthlyUsageRow, "reserved_count" | "settled_count" | "updated_at">;
+      monthly_ai_usage: TableDef<MonthlyAiUsageRow, "request_count" | "updated_at">;
       audit_logs: TableDef<
         AuditLogRow,
         "id" | "workspace_id" | "actor_user_id" | "resource_type" | "resource_id" | "metadata" | "created_at"
@@ -463,6 +477,10 @@ export type Database = {
       consume_api_rate_limit: {
         Args: { p_integration_id: string; p_limit: number; p_window_seconds?: number };
         Returns: { allowed: boolean; request_count: number; retry_after_seconds: number }[];
+      };
+      consume_ai_quota: {
+        Args: { p_workspace_id: string; p_year_month: string; p_limit: number };
+        Returns: { allowed: boolean; request_count: number }[];
       };
       claim_outbox_jobs: {
         Args: { p_worker_id: string; p_batch_size?: number; p_lease_seconds?: number };

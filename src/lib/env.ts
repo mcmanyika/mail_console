@@ -35,8 +35,51 @@ export function getSupabaseServiceRoleKey(): string {
   return required("SUPABASE_SERVICE_ROLE_KEY", process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
+function stripTrailingSlash(url: string): string {
+  return url.replace(/\/$/, "");
+}
+
+function isLocalHost(urlOrHost: string): boolean {
+  return /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(urlOrHost);
+}
+
+/**
+ * Canonical public origin for invite links, auth redirects, etc.
+ * Prefer NEXT_PUBLIC_APP_URL; in production ignore a localhost value and fall
+ * back to Vercel’s production/deployment host so invites never point at :3000.
+ */
 export function getAppUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (configured && !(isProduction() && isLocalHost(configured))) {
+    return stripTrailingSlash(configured);
+  }
+  const vercelHost = (process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL)?.trim();
+  if (vercelHost) {
+    const host = vercelHost.replace(/^https?:\/\//, "");
+    return `https://${host}`;
+  }
+  return stripTrailingSlash(configured || "http://localhost:3000");
+}
+
+/**
+ * Prefer the incoming request’s public origin (so invites match the domain the
+ * admin is actually using, e.g. https://www.mailconsole.app). Falls back to getAppUrl().
+ */
+export async function getRequestAppUrl(): Promise<string> {
+  try {
+    const { headers } = await import("next/headers");
+    const h = await headers();
+    const origin = h.get("origin");
+    if (origin && !isLocalHost(origin)) return stripTrailingSlash(origin);
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    if (host && !isLocalHost(host)) {
+      const proto = h.get("x-forwarded-proto") ?? (isProduction() ? "https" : "http");
+      return `${proto}://${host.split(",")[0]!.trim()}`;
+    }
+  } catch {
+    // Not in a request context (tests, scripts).
+  }
+  return getAppUrl();
 }
 
 /** DEMO_MODE=true forces the mock email adapter: nothing is ever really sent. */
@@ -66,4 +109,16 @@ export function getOutboxConfig() {
 
 export function getMaxAttachmentBytes(): number {
   return intFromEnv("MAX_ATTACHMENT_BYTES", 25 * 1024 * 1024);
+}
+
+/** SERVER ONLY. OpenAI chat for inbox assist. Missing key disables AI features. */
+export function isOpenAiConfigured(): boolean {
+  return Boolean(process.env.OPENAI_API_KEY?.trim());
+}
+
+export function getOpenAiConfig(): { apiKey: string; model: string } {
+  return {
+    apiKey: required("OPENAI_API_KEY", process.env.OPENAI_API_KEY?.trim()),
+    model: process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini",
+  };
 }

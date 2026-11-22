@@ -12,6 +12,7 @@ import { discardDraftAction } from "@/lib/actions/inbox";
 import { idleState } from "@/lib/actions/state";
 import type { ComposeInit } from "@/lib/data/compose";
 import { formatBytes } from "@/lib/format";
+import { ComposeAiAssist } from "./compose-ai";
 
 type AttachmentMeta = { id: string; filename: string; size: number };
 
@@ -132,6 +133,16 @@ export function ComposeForm({ init, backHref }: { init: ComposeInit; backHref: s
               ))}
             </Select>
           </div>
+        ) : null}
+
+        {init.aiEnabled ? (
+          <ComposeAiAssist
+            slug={init.slug}
+            threadId={init.threadId}
+            subject={subject}
+            body={body}
+            onApply={setBody}
+          />
         ) : null}
 
         <Field label="Message" htmlFor="body" error={fe.body}>

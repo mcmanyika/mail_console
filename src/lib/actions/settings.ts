@@ -7,7 +7,7 @@ import { canManageRole } from "@/lib/auth/authz";
 import { generateApiKey, generateInviteToken } from "@/lib/crypto/api-keys";
 import { requireWorkspaceAction } from "@/lib/data/workspace";
 import { textToHtml } from "@/lib/email/sanitize";
-import { getAppUrl } from "@/lib/env";
+import { getRequestAppUrl } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json, MailboxPermission, WorkspaceRole } from "@/lib/types/database";
 import { formString, guarded } from "./guard";
@@ -180,8 +180,13 @@ export async function inviteMemberAction(_prev: ActionState, formData: FormData)
     if (error || !inv) throw new Error(error?.message ?? "invite failed");
     await writeAudit(admin, { workspaceId: ctx.workspace.id, actorUserId: ctx.user.id, action: "invitation.created", resourceType: "workspace_invitation", resourceId: inv.id, metadata: { email: parsed.data.email, role: parsed.data.role } });
     refresh(slug, "team");
+    const origin = await getRequestAppUrl();
     return ok("Invitation created. Send this link to them — it works once and is shown only now.", {
-      reveal: { label: `Invite link for ${parsed.data.email}`, value: `${getAppUrl()}/invite/${token}`, note: `Expires in ${INVITE_TTL_DAYS} days. They must sign in with ${parsed.data.email}.` },
+      reveal: {
+        label: `Invite link for ${parsed.data.email}`,
+        value: `${origin}/invite/${token}`,
+        note: `Expires in ${INVITE_TTL_DAYS} days. They must sign in with ${parsed.data.email}.`,
+      },
     });
   });
 }
@@ -306,6 +311,44 @@ export async function deleteTemplateAction(slug: string, templateId: string, for
   if (error) throw new Error(error.message);
   await writeAudit(createAdminClient(), { workspaceId: ctx.workspace.id, actorUserId: ctx.user.id, action: "template.deleted", resourceType: "email_template", resourceId: templateId });
   refresh(slug, "templates");
+}
+
+// =========================== AI assist ===========================
+export async function saveAiSettingsAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  return guarded(async () => {
+    const slug = formString(formData, "slug");
+    const ctx = await requireWorkspaceAction({ slug }, "admin");
+    const enabled = formData.get("aiEnabled") === "on";
+    const instructionsRaw = formString(formData, "aiInstructions");
+    const limitParsed = z.coerce.number().int().min(0).max(100_000).safeParse(formData.get("monthlyAiLimit"));
+    if (!limitParsed.success) return fail("Enter a valid monthly AI limit.", { monthlyAiLimit: "0–100000" });
+    if (instructionsRaw.length > 2000) return fail("Instructions are too long (max 2000 characters).", { aiInstructions: "Too long" });
+
+    const { data, error } = await ctx.supabase
+      .from("workspaces")
+      .update({
+        ai_enabled: enabled,
+        ai_instructions: instructionsRaw || null,
+        monthly_ai_limit: limitParsed.data,
+      })
+      .eq("id", ctx.workspace.id)
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return fail("Could not update AI settings.");
+
+    await writeAudit(createAdminClient(), {
+      workspaceId: ctx.workspace.id,
+      actorUserId: ctx.user.id,
+      action: enabled ? "ai.enabled" : "ai.disabled",
+      resourceType: "workspace",
+      resourceId: ctx.workspace.id,
+      metadata: { ai_enabled: enabled, monthly_ai_limit: limitParsed.data, has_instructions: Boolean(instructionsRaw) },
+    });
+    refresh(slug, "ai");
+    revalidatePath(`/w/${slug}`, "layout");
+    return ok(enabled ? "AI assist is on for this workspace." : "AI assist is off.");
+  });
 }
 
 // =========================== integrations ===========================

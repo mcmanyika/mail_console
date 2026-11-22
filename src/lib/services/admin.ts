@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { requirePlatformAdmin } from "@/lib/auth/authz";
 import { generateInviteToken } from "@/lib/crypto/api-keys";
-import { getAppUrl } from "@/lib/env";
+import { getAppUrl, getRequestAppUrl } from "@/lib/env";
 import type { AdminClient } from "@/lib/supabase/admin";
 import type { WorkspaceRow } from "@/lib/types/database";
 
@@ -154,7 +154,8 @@ export async function inviteOwner(ctx: AdminCtx, rawInput: z.input<typeof invite
     .single();
   if (error || !inv) throw new Error(`invitation insert failed: ${error?.message ?? "no data"}`);
   await audit(ctx, input.workspaceId, "workspace.owner_invited", { invitation_id: inv.id });
-  return { kind: "invitation_created", invitationId: inv.id, expiresAt, inviteUrl: `${getAppUrl()}/invite/${token}` };
+  const origin = await getRequestAppUrl().catch(() => getAppUrl());
+  return { kind: "invitation_created", invitationId: inv.id, expiresAt, inviteUrl: `${origin}/invite/${token}` };
 }
 
 // ---- suspend / reinstate / limits --------------------------------------------------------------------------------------
