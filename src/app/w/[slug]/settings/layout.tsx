@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { SettingsNav } from "@/components/settings/settings-nav";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,13 +15,24 @@ export default function SettingsLayout({ children, params }: { children: React.R
             <Nav params={params} />
           </Suspense>
         </aside>
-        <div className="min-w-0 flex-1">{children}</div>
+        <div className="min-w-0 flex-1">
+          <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+            <SettingsBody>{children}</SettingsBody>
+          </Suspense>
+        </div>
       </div>
     </div>
   );
 }
 
+async function SettingsBody({ children }: { children: React.ReactNode }) {
+  // Relative "last checked" / invite times use Date.now during render.
+  await connection();
+  return children;
+}
+
 async function Nav({ params }: { params: Promise<{ slug: string }> }) {
+  await connection();
   const { slug } = await params;
   const ctx = await getWorkspaceContext(slug);
   const items = accessibleSections(ctx.role).map((s) => ({ key: s.key, label: s.label }));

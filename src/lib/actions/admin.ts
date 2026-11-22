@@ -27,7 +27,7 @@ const createClientSchema = z.object({
 
 async function createInvitation(
   admin: ReturnType<typeof createAdminClient>,
-  params: { workspaceId: string; email: string; invitedBy: string },
+  params: { workspaceId: string; email: string; invitedBy: string; role: "owner" | "admin" | "member" },
 ) {
   // Replace any still-pending invite for the same address (unique pending index).
   await admin
@@ -43,7 +43,7 @@ async function createInvitation(
     .insert({
       workspace_id: params.workspaceId,
       email: params.email,
-      role: "owner",
+      role: params.role,
       token_hash: tokenHash,
       expires_at: new Date(Date.now() + INVITE_TTL_DAYS * 86_400_000).toISOString(),
       invited_by: params.invitedBy,
@@ -81,7 +81,12 @@ export async function createClientAction(_prev: ActionState, formData: FormData)
       if (error?.code === "23505") return fail("That URL slug is taken.", { slug: "Already in use" });
       throw new Error(error?.message ?? "workspace insert failed");
     }
-    const invite = await createInvitation(admin, { workspaceId: ws.id, email: v.ownerEmail, invitedBy: user.id });
+    const invite = await createInvitation(admin, {
+      workspaceId: ws.id,
+      email: v.ownerEmail,
+      invitedBy: user.id,
+      role: "owner",
+    });
     await writeAudit(admin, {
       workspaceId: ws.id,
       actorUserId: user.id,
@@ -122,18 +127,33 @@ export async function inviteOwnerAction(_prev: ActionState, formData: FormData):
     const admin = createAdminClient();
     const { data: ws } = await admin.from("workspaces").select("id").eq("id", workspaceId).maybeSingle();
     if (!ws) return fail("Workspace not found.");
-    const invite = await createInvitation(admin, { workspaceId, email: email.data, invitedBy: user.id });
+    const { count: ownerCount } = await admin
+      .from("workspace_memberships")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .eq("role", "owner");
+    const role = (ownerCount ?? 0) === 0 ? "owner" : "admin";
+    const invite = await createInvitation(admin, {
+      workspaceId,
+      email: email.data,
+      invitedBy: user.id,
+      role,
+    });
     await writeAudit(admin, {
       workspaceId,
       actorUserId: user.id,
       action: "invitation.created",
       resourceType: "workspace_invitation",
       resourceId: invite.id,
-      metadata: { email: email.data, by: "platform_admin" },
+      metadata: { email: email.data, role, by: "platform_admin" },
     });
     revalidatePath(`/admin/workspaces/${workspaceId}`);
     return ok("Invitation created.", {
-      reveal: { label: `Invitation for ${email.data}`, value: invite.url, note: "Single use. Shown only once." },
+      reveal: {
+        label: `Invitation for ${email.data}`,
+        value: invite.url,
+        note: `Role: ${role}. Single use. Shown only once.`,
+      },
     });
   });
 }

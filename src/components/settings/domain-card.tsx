@@ -4,7 +4,7 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { asDnsRecords, splitRecords, statusLabel, statusTone } from "@/lib/domains";
 import { formatRelative } from "@/lib/format";
 import type { DnsRecord, DomainRow } from "@/lib/types/database";
-import { RecheckButton } from "./domain-forms";
+import { DeleteDomainButton, RecheckButton } from "./domain-forms";
 
 function RecordsTable({ records, empty }: { records: DnsRecord[]; empty: string }) {
   if (records.length === 0) return <p className="px-4 py-3 text-[13px] text-muted">{empty}</p>;
@@ -56,7 +56,15 @@ function RecordsTable({ records, empty }: { records: DnsRecord[]; empty: string 
   );
 }
 
-export function DomainCard({ domain, canManage = true }: { domain: DomainRow; canManage?: boolean }) {
+export function DomainCard({
+  domain,
+  canManage = true,
+  mailboxCount = 0,
+}: {
+  domain: DomainRow;
+  canManage?: boolean;
+  mailboxCount?: number;
+}) {
   const { outbound, inbound } = splitRecords(asDnsRecords(domain.dns_records));
   return (
     <section className="overflow-hidden rounded-lg border border-line bg-surface shadow-(--shadow-panel)" aria-label={domain.hostname}>
@@ -74,7 +82,12 @@ export function DomainCard({ domain, canManage = true }: { domain: DomainRow; ca
               <ArrowDownToLine className="size-3" aria-hidden /> Receiving · {statusLabel(domain.inbound_status)}
             </Badge>
           </div>
-          {canManage ? <RecheckButton domainId={domain.id} /> : null}
+          {canManage ? (
+            <div className="flex items-center gap-2">
+              <RecheckButton domainId={domain.id} />
+              <DeleteDomainButton domainId={domain.id} hostname={domain.hostname} mailboxCount={mailboxCount} />
+            </div>
+          ) : null}
         </div>
       </header>
       <div className="divide-y divide-line">

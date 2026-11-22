@@ -8,7 +8,7 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader, Panel } from "@/components/ui/panel";
 import { SkeletonRows } from "@/components/ui/skeleton";
-import { gateSection, getDomains } from "@/lib/data/settings";
+import { gateSection, getDomainMailboxCounts, getDomains } from "@/lib/data/settings";
 import { isDemoMode } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Domains" };
@@ -28,7 +28,10 @@ async function Body({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const gate = await gateSection(slug, "domains");
   if (!gate.allowed) return <SectionDenied slug={slug} section="Domain" />;
-  const domains = await getDomains(gate.ctx);
+  const [domains, mailboxCounts] = await Promise.all([
+    getDomains(gate.ctx),
+    getDomainMailboxCounts(gate.ctx.workspace.id),
+  ]);
   return (
     <div className="space-y-6">
       {isDemoMode() ? (
@@ -47,7 +50,7 @@ async function Body({ params }: { params: Promise<{ slug: string }> }) {
       ) : (
         <div className="space-y-4">
           {domains.map((d) => (
-            <DomainCard key={d.id} domain={d} />
+            <DomainCard key={d.id} domain={d} mailboxCount={mailboxCounts[d.id] ?? 0} />
           ))}
         </div>
       )}

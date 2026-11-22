@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { InboxToolbar } from "@/components/inbox/inbox-toolbar";
 import { EmptyFolder, MailboxDenied, NoMailboxAccess, NoSelection } from "@/components/inbox/states";
@@ -43,6 +44,8 @@ function InboxSkeleton() {
 }
 
 async function InboxBody({ params, searchParams }: { params: Params; searchParams: SP }) {
+  // Relative timestamps use Date.now(); wait for the request (Next 16 cacheComponents).
+  await connection();
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
   const ctx = await getWorkspaceContext(slug);
   const mailboxes = await getReadableMailboxes(slug);

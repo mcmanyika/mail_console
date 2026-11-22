@@ -27,6 +27,16 @@ export async function getDomains(ctx: WorkspaceContext): Promise<DomainRow[]> {
   return data ?? [];
 }
 
+/** Mailbox counts per domain (for delete confirmation). Metadata only. */
+export async function getDomainMailboxCounts(workspaceId: string): Promise<Record<string, number>> {
+  const admin = createAdminClient();
+  const { data, error } = await admin.from("mailboxes").select("domain_id").eq("workspace_id", workspaceId);
+  if (error) throw new Error(error.message);
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) counts[row.domain_id] = (counts[row.domain_id] ?? 0) + 1;
+  return counts;
+}
+
 // ---- mailboxes & grants ---------------------------------------------------------------------
 export type MemberRow = { membershipId: string; userId: string; role: WorkspaceRole; email: string; fullName: string | null; createdAt: string };
 

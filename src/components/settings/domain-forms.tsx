@@ -1,8 +1,9 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
-import { addDomainAction, recheckDomainAction } from "@/lib/actions/domains";
+import { RefreshCw, Trash2 } from "lucide-react";
+import { addDomainAction, deleteDomainAction, recheckDomainAction } from "@/lib/actions/domains";
 import { ActionField, ActionForm } from "@/components/ui/action-form";
+import { ConfirmButton } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/form-controls";
 import { SubmitButton } from "@/components/ui/submit-button";
 
@@ -34,5 +35,48 @@ export function RecheckButton({ domainId }: { domainId: string }) {
         <RefreshCw className="size-3.5" aria-hidden /> Recheck DNS
       </SubmitButton>
     </ActionForm>
+  );
+}
+
+export function DeleteDomainButton({
+  domainId,
+  hostname,
+  mailboxCount = 0,
+}: {
+  domainId: string;
+  hostname: string;
+  mailboxCount?: number;
+}) {
+  return (
+    <ConfirmButton
+      action={deleteDomainAction}
+      hiddenFields={{ domainId }}
+      triggerLabel={
+        <>
+          <Trash2 className="size-3.5" aria-hidden /> Delete
+        </>
+      }
+      triggerVariant="danger-ghost"
+      triggerSize="sm"
+      title={`Delete ${hostname}?`}
+      confirmLabel="Delete domain"
+      description={
+        <>
+          <p>
+            This removes the domain from Mail Console and asks Resend to delete it. You can add it again later if needed.
+          </p>
+          {mailboxCount > 0 ? (
+            <p className="mt-2">
+              <strong className="font-medium text-ink-2">
+                {mailboxCount} mailbox{mailboxCount === 1 ? "" : "es"}
+              </strong>{" "}
+              on this domain will be deleted, including their threads and messages.
+            </p>
+          ) : (
+            <p className="mt-2">No mailboxes are attached to this domain.</p>
+          )}
+        </>
+      }
+    />
   );
 }

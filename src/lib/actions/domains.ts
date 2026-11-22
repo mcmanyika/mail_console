@@ -120,3 +120,41 @@ export async function recheckDomainAction(_prev: ActionState, formData: FormData
     return ok("DNS rechecked.");
   });
 }
+
+/**
+ * Remove a domain from Mail Console and (best-effort) from the email provider.
+ * Cascades to mailboxes on that domain (and their threads/messages) via FK.
+ */
+export async function deleteDomainAction(formData: FormData): Promise<void> {
+  const domainId = formString(formData, "domainId");
+  const admin = createAdminClient();
+  const { data: domain } = await admin.from("domains").select("*").eq("id", domainId).maybeSingle();
+  if (!domain) throw new Error("Domain not found");
+  const { user, workspace } = await requireDomainManager(domain.workspace_id);
+
+  if (domain.resend_domain_id) {
+    const adapter = getEmailAdapter();
+    try {
+      await adapter.deleteDomain(domain.resend_domain_id);
+    } catch (e) {
+      // Provider 404 = already gone; other errors still allow local cleanup so
+      // the mistaken vercel.app domain can be removed even if Resend disagrees.
+      if (!(e instanceof ProviderRequestError && e.statusCode === 404)) {
+        console.error(`[domain.delete] provider remove failed for ${domain.hostname}:`, e);
+      }
+    }
+  }
+
+  const { error } = await admin.from("domains").delete().eq("id", domain.id).eq("workspace_id", workspace.id);
+  if (error) throw new Error(error.message);
+
+  await writeAudit(admin, {
+    workspaceId: workspace.id,
+    actorUserId: user.id,
+    action: "domain.deleted",
+    resourceType: "domain",
+    resourceId: domain.id,
+    metadata: { hostname: domain.hostname },
+  });
+  revalidateDomainViews(workspace.id, workspace.slug);
+}

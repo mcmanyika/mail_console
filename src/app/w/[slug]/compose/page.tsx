@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Lock, SearchX } from "lucide-react";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { ComposeForm } from "@/components/inbox/compose-form";
 import { LinkButton } from "@/components/ui/button";
@@ -35,6 +36,7 @@ export default function ComposePage({ params, searchParams }: { params: Params; 
 }
 
 async function ComposeBody({ params, searchParams }: { params: Params; searchParams: SP }) {
+  await connection();
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
   const back = inboxHref(slug, { folder: "inbox" });
   const result = await loadCompose(slug, {

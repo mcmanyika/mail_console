@@ -15,6 +15,7 @@ import { UsageBar } from "@/components/ui/usage-bar";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { revokeInvitationAdminAction } from "@/lib/actions/admin";
 import { getAdminWorkspaceDetail } from "@/lib/data/admin";
+import { getDomainMailboxCounts } from "@/lib/data/settings";
 import { formatNumber, formatRelative } from "@/lib/format";
 import { Globe } from "lucide-react";
 
@@ -40,6 +41,7 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
   if (!UUID.test(id)) notFound();
   const d = await getAdminWorkspaceDetail(id);
   if (!d) notFound();
+  const mailboxCounts = await getDomainMailboxCounts(id);
   const { workspace: w } = d;
   const suspended = w.status === "suspended";
 
@@ -148,7 +150,7 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
         ) : (
           <div className="space-y-4">
             {d.domains.map((dom) => (
-              <DomainCard key={dom.id} domain={dom} />
+              <DomainCard key={dom.id} domain={dom} mailboxCount={mailboxCounts[dom.id] ?? 0} />
             ))}
           </div>
         )}

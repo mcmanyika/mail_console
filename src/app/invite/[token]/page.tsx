@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { AcceptInviteForm } from "@/components/auth/accept-invite";
 import { AuthShell } from "@/components/layout/auth-shell";
@@ -28,6 +29,8 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
 }
 
 async function InviteBody({ params }: { params: Promise<{ token: string }> }) {
+  // Expiry check uses Date.now(); wait for the request (Next 16 cacheComponents).
+  await connection();
   const { token } = await params;
   const [invite, user] = await Promise.all([lookupInvite(token), getCurrentUser()]);
 

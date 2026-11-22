@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { Inbox, ShieldCheck } from "lucide-react";
 import { Brand } from "@/components/layout/brand";
@@ -32,6 +33,7 @@ export default function DashboardPage() {
 }
 
 async function DashboardRouter() {
+  await connection();
   await requireUser("/dashboard");
   const memberships = await getUserWorkspaces();
   const workspaces = memberships
