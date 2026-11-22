@@ -34,7 +34,6 @@ export function AuthShell({
             </li>
           </ul>
         </div>
-        <p className="text-xs text-slate-400">Demo data only in DEMO_MODE — no real email is ever sent.</p>
       </aside>
       <main className="flex flex-1 items-center justify-center px-5 py-12">
         <div className="w-full max-w-[400px]">
