@@ -16,7 +16,7 @@ export default function LoginPage({ searchParams }: { searchParams: SP }) {
   return (
     <AuthShell
       title="Sign in"
-      subtitle="Welcome back. Pick up where your team left off."
+      subtitle="Welcome back."
       footer={
         <Suspense fallback={null}>
           <SignupLink searchParams={searchParams} />

@@ -13,9 +13,9 @@ export function AuthShell({
 }) {
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
-      <aside className="relative hidden w-[44%] max-w-[640px] flex-col bg-ink p-12 text-white lg:flex">
+      <aside className="relative hidden w-[44%] max-w-[640px] flex-col justify-center bg-ink p-12 text-white lg:flex">
         <Brand className="[&_span]:text-white" />
-        <div className="mt-16">
+        <div className="mt-10">
           <p className="font-serif text-[34px] font-medium leading-[1.15] tracking-tight">
             One console for every client&apos;s mail.
           </p>
