@@ -302,7 +302,7 @@ export async function composeAction(_prev: ActionState, formData: FormData): Pro
       }
     });
     revalidatePath(`/w/${slug}`, "layout");
-    redirectTo = `/w/${slug}/inbox?folder=inbox&thread=${enq.threadId}&queued=1`;
+    redirectTo = `/w/${slug}/inbox?folder=inbox&thread=${enq.threadId}`;
     return ok();
   });
 

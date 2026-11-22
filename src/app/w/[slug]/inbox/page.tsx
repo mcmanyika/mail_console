@@ -55,8 +55,6 @@ async function InboxBody({ params, searchParams }: { params: Params; searchParam
   const mailboxParam = first(sp.mailbox) ?? null;
   const q = (first(sp.q) ?? "").slice(0, 80);
   const threadParam = first(sp.thread) ?? null;
-  const queued = first(sp.queued) === "1";
-
   if (mailboxParam && !mailboxes.some((m) => m.id === mailboxParam)) return <MailboxDenied slug={slug} />;
 
   const unread = await getUnreadCounts(slug);
@@ -94,7 +92,7 @@ async function InboxBody({ params, searchParams }: { params: Params; searchParam
                 </div>
               }
             >
-              <ReadingPane slug={slug} threadId={threadParam} mailboxId={mailboxParam} listPath={listPath} queued={queued} />
+              <ReadingPane slug={slug} threadId={threadParam} mailboxId={mailboxParam} listPath={listPath} />
             </Suspense>
           ) : (
             <NoSelection />
@@ -143,13 +141,11 @@ async function ReadingPane({
   threadId,
   mailboxId,
   listPath,
-  queued,
 }: {
   slug: string;
   threadId: string;
   mailboxId: string | null;
   listPath: string;
-  queued: boolean;
 }) {
   const result = await getThread(slug, threadId);
   if (result.status === "denied") {
@@ -174,5 +170,5 @@ async function ReadingPane({
       />
     );
   }
-  return <ThreadView slug={slug} detail={result.detail} backHref={listPath} returnTo={listPath} mailboxId={mailboxId} queued={queued} />;
+  return <ThreadView slug={slug} detail={result.detail} backHref={listPath} returnTo={listPath} mailboxId={mailboxId} />;
 }

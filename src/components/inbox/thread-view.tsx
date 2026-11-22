@@ -1,4 +1,4 @@
-import { AlertCircle, Archive, ArrowLeft, Clock, Download, File, Forward, MailOpen, Paperclip, Reply, ReplyAll, Undo2 } from "lucide-react";
+import { AlertCircle, Archive, ArrowLeft, Download, File, Forward, MailOpen, Paperclip, Reply, ReplyAll, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { Alert } from "@/components/ui/alert";
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -31,14 +31,12 @@ export function ThreadView({
   backHref,
   returnTo,
   mailboxId,
-  queued,
 }: {
   slug: string;
   detail: ThreadDetail;
   backHref: string;
   returnTo: string;
   mailboxId: string | null;
-  queued: boolean;
 }) {
   const { messages, canSend } = detail;
   const last = messages[messages.length - 1];
@@ -93,11 +91,6 @@ export function ThreadView({
 
       <div className="scroll-quiet min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl space-y-4 px-4 py-5 md:px-6">
-          {queued ? (
-            <Alert tone="success" title="Message queued">
-              It&apos;s on its way. Delivery status below updates as the provider confirms.
-            </Alert>
-          ) : null}
           {messages.map((m, i) => (
             <MessageCard
               key={m.id}
@@ -167,13 +160,8 @@ function MessageCard({
             to {to.map((r) => r.address).join(", ") || "—"}
             {cc.length ? ` · cc ${cc.map((r) => r.address).join(", ")}` : ""}
           </span>
-          {outbound ? (
+          {outbound && (m.lifecycle_state === "submitted" || m.lifecycle_state === "failed") ? (
             <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              {m.lifecycle_state === "queued" ? (
-                <Badge tone="warn" dot>
-                  <Clock className="size-3" aria-hidden /> Queued — waiting to send
-                </Badge>
-              ) : null}
               {m.lifecycle_state === "submitted" ? <Badge tone="accent">Sent to provider</Badge> : null}
               {m.lifecycle_state === "failed" ? (
                 <Badge tone="danger">
@@ -200,11 +188,6 @@ function MessageCard({
             }
           >
             {m.failure_reason ?? "The provider rejected it."} No quota was used.
-          </Alert>
-        ) : null}
-        {outbound && m.lifecycle_state === "queued" ? (
-          <Alert tone="warn" title="In the send queue" className="mb-4">
-            The worker will deliver this shortly. Failed attempts are retried automatically with backoff.
           </Alert>
         ) : null}
 
