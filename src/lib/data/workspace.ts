@@ -32,7 +32,7 @@ export type WorkspaceContext = {
  */
 export const getWorkspaceContext = cache(async (slug: string): Promise<WorkspaceContext> => {
   const user = await getCurrentUser();
-  if (!user) redirect(`/login?next=${encodeURIComponent(`/w/${slug}/inbox`)}`);
+  if (!user) redirect(`/?next=${encodeURIComponent(`/w/${slug}/inbox`)}`);
   const supabase = await createClient();
   const { data: workspace, error } = await supabase.from("workspaces").select("*").eq("slug", slug).maybeSingle();
   if (error) throw new Error(`workspace lookup failed: ${error.message}`);

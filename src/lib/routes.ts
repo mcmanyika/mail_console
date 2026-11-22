@@ -1,11 +1,12 @@
 /** Route constants + proxy access rules shared by `src/proxy.ts` and auth helpers. */
 
-export const LOGIN_PATH = "/login";
+/** Sign-in is the site landing page. */
+export const LOGIN_PATH = "/";
 export const DEFAULT_AUTHED_PATH = "/dashboard";
 
 /** Paths (prefix match on a segment boundary) reachable without a session. */
 export const PUBLIC_PATH_PREFIXES = [
-  "/login",
+  "/login", // redirects to `/`
   "/signup",
   "/auth", // OAuth/magic-link/confirm callbacks
   "/invite", // invitation acceptance landing (does its own token check)
@@ -32,6 +33,7 @@ export function isPublicPath(pathname: string): boolean {
 
 /** Pages that a signed-in user should be bounced away from. */
 export function isGuestOnlyPath(pathname: string): boolean {
+  if (pathname === "/") return true;
   return ["/login", "/signup", "/forgot-password"].some((p) => matchesPrefix(pathname, p));
 }
 

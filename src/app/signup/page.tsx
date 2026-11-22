@@ -45,7 +45,7 @@ async function LoginLink({ searchParams }: { searchParams: SP }) {
   return (
     <>
       Already have an account?{" "}
-      <Link href={`/login${suffix}`} className="font-medium text-accent hover:underline">
+      <Link href={suffix ? `/${suffix}` : "/"} className="font-medium text-accent hover:underline">
         Sign in
       </Link>
     </>

@@ -128,7 +128,7 @@ async function main() {
       body: JSON.stringify({
         type: "recovery",
         email: emailArg,
-        options: { redirect_to: `${appUrl}/login` },
+        options: { redirect_to: `${appUrl}/` },
       }),
     });
     if (linkRes.ok) {

@@ -37,7 +37,7 @@ async function InviteBody({ params }: { params: Promise<{ token: string }> }) {
   if (invite.state === "invalid") {
     return (
       <AuthShell title="Invitation not found" subtitle="This link isn't valid. Check that you copied the whole URL.">
-        <LinkButton href="/login" variant="secondary" className="w-full">
+        <LinkButton href="/" variant="secondary" className="w-full">
           Go to sign in
         </LinkButton>
       </AuthShell>
@@ -83,7 +83,7 @@ async function InviteBody({ params }: { params: Promise<{ token: string }> }) {
             <LinkButton href={`/signup?${q}`} variant="primary" size="lg" className="w-full">
               Create account to join
             </LinkButton>
-            <LinkButton href={`/login?${q}`} variant="secondary" size="lg" className="w-full">
+            <LinkButton href={`/?${q}`} variant="secondary" size="lg" className="w-full">
               I already have an account
             </LinkButton>
           </>
