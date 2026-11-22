@@ -14,6 +14,10 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // Sign-in lives at `/`; keep `/login` as a permanent alias.
+  async redirects() {
+    return [{ source: "/login", destination: "/", permanent: true }];
+  },
 };
 
 export default nextConfig;
