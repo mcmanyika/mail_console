@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { safeEqualHex } from "@/lib/crypto/api-keys";
+import { processCampaignFanOut } from "@/lib/email/campaigns";
 import { processOutboxBatch } from "@/lib/email/outbox";
 import { reprocessWebhookEvents } from "@/lib/email/webhooks";
 import { getOutboxConfig } from "@/lib/env";
@@ -54,11 +55,24 @@ async function run(request: Request): Promise<Response> {
       if (s.claimed < batchSize) break; // queue drained
     }
 
+    // Campaign fan-out: claim pending recipients → draft + enqueue into the same outbox.
+    const campaigns =
+      Date.now() - started < TIME_BUDGET_MS
+        ? await processCampaignFanOut(admin, { workerId: `cron-campaigns-${started}` })
+        : { skipped: true as const };
+
     // Housekeeping that rides along: stuck webhook events + expired idempotency keys.
     const webhooks = await reprocessWebhookEvents(admin, adapter);
     await admin.from("api_idempotency_keys").delete().lt("expires_at", new Date().toISOString());
 
-    return NextResponse.json({ ok: true, adapter: adapter.mode, outbox: totals, webhooks, ms: Date.now() - started });
+    return NextResponse.json({
+      ok: true,
+      adapter: adapter.mode,
+      outbox: totals,
+      campaigns,
+      webhooks,
+      ms: Date.now() - started,
+    });
   } catch (err) {
     console.error("[cron/outbox] failed", err instanceof Error ? err.message : err);
     return NextResponse.json({ ok: false, error: "worker_failed", outbox: totals }, { status: 500 });

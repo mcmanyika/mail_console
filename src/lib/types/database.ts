@@ -38,6 +38,8 @@ export type DeliveryState =
 export type OutboxStatus = "pending" | "processing" | "succeeded" | "failed" | "dead";
 export type QuotaState = "none" | "reserved" | "settled" | "released";
 export type WebhookStatus = "received" | "processing" | "processed" | "ignored" | "failed";
+export type CampaignStatus = "draft" | "scheduled" | "sending" | "paused" | "sent" | "cancelled";
+export type CampaignRecipientStatus = "pending" | "queued" | "sent" | "failed" | "skipped";
 
 /** One DNS record as stored in domains.dns_records. */
 export type DnsRecord = {
@@ -286,6 +288,65 @@ export type MonthlyAiUsageRow = {
   updated_at: string;
 };
 
+export type AudienceListRow = {
+  id: string;
+  workspace_id: string;
+  name: string;
+  description: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AudienceContactRow = {
+  id: string;
+  workspace_id: string;
+  list_id: string;
+  email: string;
+  full_name: string | null;
+  fields: Json;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CampaignRow = {
+  id: string;
+  workspace_id: string;
+  list_id: string;
+  mailbox_id: string;
+  name: string;
+  subject: string;
+  body_text: string;
+  body_html: string | null;
+  status: CampaignStatus;
+  scheduled_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_by: string | null;
+  total_count: number;
+  sent_count: number;
+  failed_count: number;
+  skipped_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CampaignRecipientRow = {
+  id: string;
+  workspace_id: string;
+  campaign_id: string;
+  email: string;
+  full_name: string | null;
+  fields: Json;
+  status: CampaignRecipientStatus;
+  message_id: string | null;
+  error: string | null;
+  claimed_at: string | null;
+  claimed_by: string | null;
+  processed_at: string | null;
+  created_at: string;
+};
+
 export type AuditLogRow = {
   id: string;
   workspace_id: string | null;
@@ -442,6 +503,36 @@ export type Database = {
       >;
       monthly_usage: TableDef<MonthlyUsageRow, "reserved_count" | "settled_count" | "updated_at">;
       monthly_ai_usage: TableDef<MonthlyAiUsageRow, "request_count" | "updated_at">;
+      audience_lists: TableDef<AudienceListRow, "id" | "description" | "created_by" | Ts>;
+      audience_contacts: TableDef<AudienceContactRow, "id" | "full_name" | "fields" | Ts>;
+      campaigns: TableDef<
+        CampaignRow,
+        | "id"
+        | "body_html"
+        | "status"
+        | "scheduled_at"
+        | "started_at"
+        | "completed_at"
+        | "created_by"
+        | "total_count"
+        | "sent_count"
+        | "failed_count"
+        | "skipped_count"
+        | Ts
+      >;
+      campaign_recipients: TableDef<
+        CampaignRecipientRow,
+        | "id"
+        | "full_name"
+        | "fields"
+        | "status"
+        | "message_id"
+        | "error"
+        | "claimed_at"
+        | "claimed_by"
+        | "processed_at"
+        | "created_at"
+      >;
       audit_logs: TableDef<
         AuditLogRow,
         "id" | "workspace_id" | "actor_user_id" | "resource_type" | "resource_id" | "metadata" | "created_at"
@@ -481,6 +572,14 @@ export type Database = {
       consume_ai_quota: {
         Args: { p_workspace_id: string; p_year_month: string; p_limit: number };
         Returns: { allowed: boolean; request_count: number }[];
+      };
+      claim_campaign_recipients: {
+        Args: { p_campaign_id: string; p_worker_id: string; p_batch_size?: number };
+        Returns: CampaignRecipientRow[];
+      };
+      bump_campaign_recipient_result: {
+        Args: { p_recipient_id: string; p_status: string; p_message_id?: string | null; p_error?: string | null };
+        Returns: undefined;
       };
       claim_outbox_jobs: {
         Args: { p_worker_id: string; p_batch_size?: number; p_lease_seconds?: number };

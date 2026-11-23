@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, FileText, Inbox, PenSquare, Send, Settings } from "lucide-react";
+import { Archive, FileText, Inbox, Megaphone, PenSquare, Send, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, use } from "react";
@@ -23,6 +23,7 @@ function RailLinks({ slug, counts }: { slug: string; counts: Counts | null }) {
     { key: "archive", label: "Archive", icon: Archive, href: `/w/${slug}/inbox?folder=archive${mailboxQs}`, active: onInbox && folder === "archive" },
   ];
   const settingsActive = pathname.startsWith(`/w/${slug}/settings`);
+  const campaignsActive = pathname.startsWith(`/w/${slug}/campaigns`);
 
   return (
     <nav aria-label="Mail" className="flex gap-1 overflow-x-auto p-2 md:flex-col md:overflow-visible md:p-3">
@@ -61,6 +62,16 @@ function RailLinks({ slug, counts }: { slug: string; counts: Counts | null }) {
         </Link>
       ))}
       <div className="mx-2 my-2 hidden border-t border-line md:block" />
+      <Link
+        href={`/w/${slug}/campaigns`}
+        aria-current={campaignsActive ? "page" : undefined}
+        className={cn(
+          "flex shrink-0 items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
+          campaignsActive ? "bg-accent-soft font-semibold text-accent-ink" : "text-ink-2 hover:bg-canvas-deep",
+        )}
+      >
+        <Megaphone className="size-4" aria-hidden /> Campaigns
+      </Link>
       <Link
         href={`/w/${slug}/settings`}
         aria-current={settingsActive ? "page" : undefined}

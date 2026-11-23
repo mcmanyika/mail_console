@@ -7,6 +7,7 @@ apps send through a small API.
 * Inbound: Resend `email.received` webhook → sanitised, mailbox-scoped threads/messages/attachments.
 * Outbound: transactional **outbox** (quota reserve → queue → worker → provider with idempotency key → settle).
 * Optional **OpenAI assist**: summarize threads, suggest replies, improve drafts (mailbox-grant scoped; per-workspace toggle + monthly AI quota). Enable in **Settings → AI** after setting `OPENAI_API_KEY`.
+* **Campaigns** (bulk email): audience lists (CSV), campaigns that fan out one message per contact through the existing outbox + monthly quota. Open **Campaigns** in the workspace rail.
 * API reference and curl examples: **[docs/api.md](docs/api.md)**.
 
 `DEMO_MODE=true` (the default in `.env.example`) uses a **mock Resend adapter**: no network calls to Resend and
