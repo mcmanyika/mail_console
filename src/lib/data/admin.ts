@@ -12,6 +12,7 @@ import type {
   DomainStatus,
   InboundDomainStatus,
   OutboxStatus,
+  InvitationRole,
   WorkspaceRole,
   WorkspaceRow,
 } from "@/lib/types/database";
@@ -211,6 +212,101 @@ export const getAttention = cache(async (): Promise<AttentionItem[]> => {
     });
   }
   return items.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "danger" ? -1 : 1));
+});
+
+// ---- registered users -----------------------------------------------------------------------
+export type AdminUserRow = {
+  id: string;
+  email: string;
+  fullName: string | null;
+  createdAt: string;
+  isPlatformAdmin: boolean;
+  memberships: { workspaceId: string; workspaceName: string; workspaceSlug: string; role: WorkspaceRole }[];
+};
+
+/** Every signed-up profile (auth.users → profiles), with workspace memberships. No message content. */
+export const listAdminUsers = cache(async (): Promise<AdminUserRow[]> => {
+  const admin = await adminOnly();
+  const [profiles, memberships, workspaces, platformAdmins] = await Promise.all([
+    admin.from("profiles").select("id, email, full_name, created_at").order("created_at", { ascending: false }),
+    admin.from("workspace_memberships").select("user_id, workspace_id, role"),
+    admin.from("workspaces").select("id, name, slug"),
+    admin.from("platform_admins").select("user_id"),
+  ]);
+  for (const r of [profiles, memberships, workspaces, platformAdmins]) {
+    if (r.error) throw new Error(r.error.message);
+  }
+
+  const wsById = new Map((workspaces.data ?? []).map((w) => [w.id, w]));
+  const adminSet = new Set((platformAdmins.data ?? []).map((p) => p.user_id));
+  const membershipsByUser = new Map<string, AdminUserRow["memberships"]>();
+  for (const m of memberships.data ?? []) {
+    const ws = wsById.get(m.workspace_id);
+    if (!ws) continue;
+    const list = membershipsByUser.get(m.user_id) ?? [];
+    list.push({
+      workspaceId: ws.id,
+      workspaceName: ws.name,
+      workspaceSlug: ws.slug,
+      role: m.role,
+    });
+    membershipsByUser.set(m.user_id, list);
+  }
+
+  return (profiles.data ?? []).map((p) => ({
+    id: p.id,
+    email: p.email,
+    fullName: p.full_name,
+    createdAt: p.created_at,
+    isPlatformAdmin: adminSet.has(p.id),
+    memberships: (membershipsByUser.get(p.id) ?? []).sort((a, b) => a.workspaceName.localeCompare(b.workspaceName)),
+  }));
+});
+
+export type AdminPendingInviteRow = {
+  id: string;
+  email: string;
+  role: InvitationRole;
+  workspaceId: string;
+  workspaceName: string;
+  workspaceSlug: string;
+  expiresAt: string;
+  createdAt: string;
+};
+
+/** Open workspace invitations across all clients (invited, not yet accepted). */
+export const listAdminPendingInvitations = cache(async (): Promise<AdminPendingInviteRow[]> => {
+  const admin = await adminOnly();
+  const now = new Date().toISOString();
+  const [invites, workspaces] = await Promise.all([
+    admin
+      .from("workspace_invitations")
+      .select("id, email, role, workspace_id, expires_at, created_at")
+      .is("accepted_at", null)
+      .is("revoked_at", null)
+      .gt("expires_at", now)
+      .order("created_at", { ascending: false }),
+    admin.from("workspaces").select("id, name, slug"),
+  ]);
+  if (invites.error) throw new Error(invites.error.message);
+  if (workspaces.error) throw new Error(workspaces.error.message);
+  const wsById = new Map((workspaces.data ?? []).map((w) => [w.id, w]));
+  const out: AdminPendingInviteRow[] = [];
+  for (const i of invites.data ?? []) {
+    const ws = wsById.get(i.workspace_id);
+    if (!ws) continue;
+    out.push({
+      id: i.id,
+      email: i.email,
+      role: i.role,
+      workspaceId: ws.id,
+      workspaceName: ws.name,
+      workspaceSlug: ws.slug,
+      expiresAt: i.expires_at,
+      createdAt: i.created_at,
+    });
+  }
+  return out;
 });
 
 // ---- workspace detail -----------------------------------------------------------------------

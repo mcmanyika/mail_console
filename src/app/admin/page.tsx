@@ -7,7 +7,7 @@ import { WorkspaceTable } from "@/components/admin/workspace-table";
 import { LinkButton } from "@/components/ui/button";
 import { PageHeader, Panel, PanelHeader } from "@/components/ui/panel";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getAttention, getOverview, getVolumeSeries, listAdminWorkspaces } from "@/lib/data/admin";
+import { getAttention, getOverview, getVolumeSeries, listAdminUsers, listAdminWorkspaces } from "@/lib/data/admin";
 import { first, formatNumber, monthLabel } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Overview" };
@@ -21,7 +21,16 @@ export default function AdminPage({ searchParams }: { searchParams: SP }) {
         eyebrow="Platform"
         title="Overview"
         description="Client workspaces, sending health and limits. Platform admins manage workspaces — message content stays behind explicit mailbox grants."
-        actions={<LinkButton href="/admin/new" variant="primary">Add client</LinkButton>}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <LinkButton href="/admin/users" variant="secondary">
+              Users
+            </LinkButton>
+            <LinkButton href="/admin/new" variant="primary">
+              Add client
+            </LinkButton>
+          </div>
+        }
       />
       <Suspense fallback={<StatsSkeleton />}>
         <Stats />
@@ -52,8 +61,8 @@ export default function AdminPage({ searchParams }: { searchParams: SP }) {
 
 function StatsSkeleton() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {Array.from({ length: 4 }, (_, i) => (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      {Array.from({ length: 5 }, (_, i) => (
         <Skeleton key={i} className="h-36" />
       ))}
     </div>
@@ -61,10 +70,17 @@ function StatsSkeleton() {
 }
 
 async function Stats() {
-  const o = await getOverview();
+  const [o, users] = await Promise.all([getOverview(), listAdminUsers()]);
   const rate = o.delivery.rate;
+  const withWorkspace = users.filter((u) => u.memberships.length > 0).length;
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <StatCard
+        label="Registered users"
+        value={formatNumber(users.length)}
+        sub={`${formatNumber(withWorkspace)} in a workspace`}
+        footnote="All signup accounts — open Users for the full list."
+      />
       <StatCard
         label="Active workspaces"
         value={formatNumber(o.activeWorkspaces)}
