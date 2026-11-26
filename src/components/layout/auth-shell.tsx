@@ -22,15 +22,15 @@ export function AuthShell({
           <ul className="mt-8 space-y-3 text-[15px] text-slate-300">
             <li className="flex gap-3">
               <span className="mt-2 size-1.5 shrink-0 rounded-full bg-indigo-400" />
-              Mailbox access is always granted explicitly — owners and admins included.
+              Shared inbox with explicit mailbox grants — owners and admins included.
             </li>
             <li className="flex gap-3">
               <span className="mt-2 size-1.5 shrink-0 rounded-full bg-indigo-400" />
-              Platform operators manage workspaces and limits, never message bodies.
+              Bulk email campaigns with audience lists, capped by each workspace package.
             </li>
             <li className="flex gap-3">
               <span className="mt-2 size-1.5 shrink-0 rounded-full bg-indigo-400" />
-              Per-client domains, sending limits and audit trails.
+              Per-client domains, monthly sending limits, and audit trails.
             </li>
           </ul>
         </div>

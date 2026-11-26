@@ -7,8 +7,8 @@ export type ButtonSize = "sm" | "md" | "lg";
 
 export function buttonClasses(variant: ButtonVariant = "secondary", size: ButtonSize = "md", className?: string) {
   return cn(
-    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors",
-    "disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50",
+    "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors",
+    "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50",
     size === "sm" && "h-8 px-3 text-[13px]",
     size === "md" && "h-9 px-3.5 text-sm",
     size === "lg" && "h-11 px-5 text-[15px]",
