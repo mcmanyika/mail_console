@@ -30,10 +30,10 @@ export default function PackagesPage() {
       </header>
 
       <main className="mx-auto max-w-5xl px-5 py-12 md:py-16">
-        <div className="mx-auto max-w-2xl text-center">
+        <div className="mx-auto text-center">
           <p className="text-xs font-medium uppercase tracking-wide text-muted">Pricing</p>
-          <h1 className="mt-2 font-serif text-[36px] font-semibold leading-tight tracking-tight text-ink md:text-[42px]">
-            Packages for every client workspace
+          <h1 className="mt-2 whitespace-nowrap font-serif text-[clamp(1.35rem,4.2vw,2.625rem)] font-semibold leading-tight tracking-tight text-ink">
+            Packages for Every Client Workspace
           </h1>
         </div>
 
