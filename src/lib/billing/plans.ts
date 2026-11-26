@@ -30,7 +30,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     tagline: "Small client or early ops",
     monthlySendingLimit: 3_000,
     monthlyAiLimit: 50,
-    maxMailboxes: 2,
+    maxMailboxes: 5,
     maxSeats: 3,
     maxCampaignContacts: 500,
     features: ["Shared inbox & domains", "Templates", "Campaigns up to 500 contacts", "AI assist (50/mo)"],

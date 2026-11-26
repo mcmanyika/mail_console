@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Globe } from "lucide-react";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { DomainCard } from "@/components/settings/domain-card";
 import { AddDomainForm } from "@/components/settings/domain-forms";
@@ -25,6 +26,8 @@ export default function DomainsPage({ params }: { params: Promise<{ slug: string
 }
 
 async function Body({ params }: { params: Promise<{ slug: string }> }) {
+  // "Last checked" uses formatRelative / Date — opt into request time.
+  await connection();
   const { slug } = await params;
   const gate = await gateSection(slug, "domains");
   if (!gate.allowed) return <SectionDenied slug={slug} section="Domain" />;
