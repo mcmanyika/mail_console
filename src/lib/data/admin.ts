@@ -312,6 +312,8 @@ export const listAdminPendingInvitations = cache(async (): Promise<AdminPendingI
 });
 
 // ---- workspace detail -----------------------------------------------------------------------
+export const ADMIN_AUDIT_PAGE_SIZE = 10;
+
 export type AdminWorkspaceDetail = {
   workspace: WorkspaceRow;
   domains: DomainRow[];
@@ -322,15 +324,25 @@ export type AdminWorkspaceDetail = {
   outbox: Record<OutboxStatus, number>;
   mailboxCount: number;
   audit: (Pick<AuditLogRow, "id" | "action" | "resource_type" | "created_at" | "metadata"> & { actor: string | null })[];
+  auditPage: number;
+  auditTotal: number;
+  auditPageSize: number;
   hasOwner: boolean;
 };
 
-export async function getAdminWorkspaceDetail(id: string): Promise<AdminWorkspaceDetail | null> {
+export async function getAdminWorkspaceDetail(
+  id: string,
+  opts: { auditPage?: number } = {},
+): Promise<AdminWorkspaceDetail | null> {
   const admin = await adminOnly();
   const { data: workspace, error } = await admin.from("workspaces").select("*").eq("id", id).maybeSingle();
   if (error) throw new Error(error.message);
   if (!workspace) return null;
   const keys = lastYearMonths(6);
+
+  const auditPage = Math.max(1, opts.auditPage ?? 1);
+  const auditFrom = (auditPage - 1) * ADMIN_AUDIT_PAGE_SIZE;
+  const auditTo = auditFrom + ADMIN_AUDIT_PAGE_SIZE - 1;
 
   const [domains, memberships, invites, usage, jobs, mailboxes, audit] = await Promise.all([
     admin.from("domains").select("*").eq("workspace_id", id).order("hostname"),
@@ -345,7 +357,12 @@ export async function getAdminWorkspaceDetail(id: string): Promise<AdminWorkspac
     admin.from("monthly_usage").select("year_month, settled_count, reserved_count").eq("workspace_id", id).in("year_month", keys),
     admin.from("outbox_jobs").select("status").eq("workspace_id", id),
     admin.from("mailboxes").select("id", { count: "exact", head: true }).eq("workspace_id", id),
-    admin.from("audit_logs").select("id, action, resource_type, created_at, metadata, actor_user_id").eq("workspace_id", id).order("created_at", { ascending: false }).limit(15),
+    admin
+      .from("audit_logs")
+      .select("id, action, resource_type, created_at, metadata, actor_user_id", { count: "exact" })
+      .eq("workspace_id", id)
+      .order("created_at", { ascending: false })
+      .range(auditFrom, auditTo),
   ]);
 
   const userIds = [...new Set([...(memberships.data ?? []).map((m) => m.user_id), ...(audit.data ?? []).map((a) => a.actor_user_id).filter((x): x is string => !!x)])];
@@ -364,6 +381,8 @@ export async function getAdminWorkspaceDetail(id: string): Promise<AdminWorkspac
     fullName: profile.get(m.user_id)?.full_name ?? null,
     joinedAt: m.created_at,
   }));
+
+  const auditTotal = audit.count ?? 0;
 
   return {
     workspace,
@@ -385,6 +404,9 @@ export async function getAdminWorkspaceDetail(id: string): Promise<AdminWorkspac
       metadata: a.metadata,
       actor: a.actor_user_id ? (profile.get(a.actor_user_id)?.email ?? "unknown") : null,
     })),
+    auditPage,
+    auditTotal,
+    auditPageSize: ADMIN_AUDIT_PAGE_SIZE,
     hasOwner: members.some((m) => m.role === "owner"),
   };
 }

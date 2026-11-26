@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { writeAudit } from "@/lib/audit";
-import { HOSTNAME_RE, normalizeHostname, statusesFromProvider } from "@/lib/domains";
+import { HOSTNAME_RE, normalizeHostname } from "@/lib/domains";
 import { requireDomainManager } from "@/lib/data/workspace";
-import { getEmailAdapter, ProviderRequestError } from "@/lib/resend";
+import { domainRowFields } from "@/lib/resend/domains";
+import { getEmailAdapter, getLiveEmailAdapterIfConfigured, ProviderRequestError } from "@/lib/resend";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Json } from "@/lib/types/database";
 import { formString, guarded } from "./guard";
 import { fail, ok, type ActionState } from "./state";
 
@@ -34,7 +34,9 @@ export async function addDomainAction(_prev: ActionState, formData: FormData): P
     const { data: taken } = await admin.from("domains").select("id").eq("hostname", hostname).maybeSingle();
     if (taken) return fail("That domain is already registered.", { hostname: "Already in use" });
 
-    const adapter = getEmailAdapter();
+    // Prefer live Resend for domain registration when a key is present so
+    // DNS records/status stay accurate even if DEMO_MODE mocks sending.
+    const adapter = getLiveEmailAdapterIfConfigured() ?? getEmailAdapter();
     let provider;
     try {
       provider = await adapter.createDomain({ hostname, enableReceiving: true });
@@ -42,17 +44,12 @@ export async function addDomainAction(_prev: ActionState, formData: FormData): P
       if (e instanceof ProviderRequestError) return fail(`The email provider rejected that domain: ${e.message}`);
       throw e;
     }
-    const s = statusesFromProvider(provider);
     const { data: row, error } = await admin
       .from("domains")
       .insert({
         workspace_id: workspace.id,
         hostname,
-        resend_domain_id: provider.providerDomainId,
-        send_status: s.send,
-        inbound_status: s.inbound,
-        dns_records: provider.records as unknown as Json,
-        last_checked_at: new Date().toISOString(),
+        ...domainRowFields(provider),
       })
       .select("id")
       .single();
@@ -83,19 +80,12 @@ export async function recheckDomainAction(_prev: ActionState, formData: FormData
     const { user, workspace } = await requireDomainManager(domain.workspace_id);
     if (!domain.resend_domain_id) return fail("This domain isn't linked to the email provider yet.");
 
-    const adapter = getEmailAdapter();
+    // Refresh from live Resend when configured — DEMO_MODE must not leave
+    // verified domains stuck as Pending in the console.
+    const adapter = getLiveEmailAdapterIfConfigured() ?? getEmailAdapter();
     try {
       const provider = await adapter.verifyDomain(domain.resend_domain_id);
-      const s = statusesFromProvider(provider);
-      await admin
-        .from("domains")
-        .update({
-          send_status: s.send,
-          inbound_status: s.inbound,
-          dns_records: provider.records as unknown as Json,
-          last_checked_at: new Date().toISOString(),
-        })
-        .eq("id", domain.id);
+      await admin.from("domains").update(domainRowFields(provider)).eq("id", domain.id);
     } catch (e) {
       if (e instanceof ProviderRequestError) {
         if (adapter.mode === "mock" && e.statusCode === 404) {
@@ -133,7 +123,7 @@ export async function deleteDomainAction(formData: FormData): Promise<void> {
   const { user, workspace } = await requireDomainManager(domain.workspace_id);
 
   if (domain.resend_domain_id) {
-    const adapter = getEmailAdapter();
+    const adapter = getLiveEmailAdapterIfConfigured() ?? getEmailAdapter();
     try {
       await adapter.deleteDomain(domain.resend_domain_id);
     } catch (e) {

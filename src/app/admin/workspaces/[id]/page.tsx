@@ -9,6 +9,7 @@ import { AddDomainForm } from "@/components/settings/domain-forms";
 import { DomainCard } from "@/components/settings/domain-card";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader, Panel, PanelHeader } from "@/components/ui/panel";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,14 +23,20 @@ import { Globe } from "lucide-react";
 
 export const metadata: Metadata = { title: "Workspace" };
 
-export default function AdminWorkspacePage({ params }: { params: Promise<{ id: string }> }) {
+export default function AdminWorkspacePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ activity?: string }>;
+}) {
   return (
     <>
       <Link href="/admin" className="mb-4 inline-block text-[13px] text-muted hover:text-ink">
         ← Overview
       </Link>
       <Suspense fallback={<Skeleton className="h-[32rem] w-full" />}>
-        <Detail params={params} />
+        <Detail params={params} searchParams={searchParams} />
       </Suspense>
     </>
   );
@@ -37,10 +44,18 @@ export default function AdminWorkspacePage({ params }: { params: Promise<{ id: s
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-async function Detail({ params }: { params: Promise<{ id: string }> }) {
+async function Detail({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ activity?: string }>;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
   if (!UUID.test(id)) notFound();
-  const d = await getAdminWorkspaceDetail(id);
+  const auditPage = Math.max(1, Number.parseInt(sp.activity ?? "1", 10) || 1);
+  const d = await getAdminWorkspaceDetail(id, { auditPage });
   if (!d) notFound();
   const mailboxCounts = await getDomainMailboxCounts(id);
   const { workspace: w } = d;
@@ -190,24 +205,86 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
         </Panel>
       </div>
 
-      <Panel className="mt-6">
-        <PanelHeader title="Recent activity" description="Audit log (no message content is ever recorded)." />
+      <Panel className="mt-6" id="activity">
+        <PanelHeader
+          title="Recent activity"
+          description={
+            d.auditTotal > 0
+              ? `Audit log · ${formatNumber(d.auditTotal)} total (no message content is ever recorded).`
+              : "Audit log (no message content is ever recorded)."
+          }
+        />
         {d.audit.length === 0 ? (
           <p className="px-5 py-6 text-sm text-muted">No activity yet.</p>
         ) : (
-          <ul className="divide-y divide-line">
-            {d.audit.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-2.5 text-[13px]">
-                <span>
-                  <code className="rounded bg-canvas-deep px-1.5 py-0.5 font-mono text-xs text-ink">{a.action}</code>
-                  <span className="ml-2 text-muted">{a.actor ?? "system"}</span>
-                </span>
-                <span className="text-xs text-muted">{formatRelative(a.created_at)}</span>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="divide-y divide-line">
+              {d.audit.map((a) => (
+                <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-2.5 text-[13px]">
+                  <span>
+                    <code className="rounded bg-canvas-deep px-1.5 py-0.5 font-mono text-xs text-ink">{a.action}</code>
+                    <span className="ml-2 text-muted">{a.actor ?? "system"}</span>
+                  </span>
+                  <span className="text-xs text-muted">{formatRelative(a.created_at)}</span>
+                </li>
+              ))}
+            </ul>
+            <ActivityPager
+              workspaceId={w.id}
+              page={d.auditPage}
+              pageSize={d.auditPageSize}
+              total={d.auditTotal}
+            />
+          </>
         )}
       </Panel>
     </>
+  );
+}
+
+function ActivityPager({
+  workspaceId,
+  page,
+  pageSize,
+  total,
+}: {
+  workspaceId: string;
+  page: number;
+  pageSize: number;
+  total: number;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (totalPages <= 1) return null;
+
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+  const href = (p: number) =>
+    p <= 1 ? `/admin/workspaces/${workspaceId}#activity` : `/admin/workspaces/${workspaceId}?activity=${p}#activity`;
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3">
+      <p className="text-[13px] text-muted">
+        Showing {from}–{to} of {formatNumber(total)}
+      </p>
+      <div className="flex items-center gap-2">
+        {page > 1 ? (
+          <LinkButton href={href(page - 1)} variant="secondary" size="sm">
+            Previous
+          </LinkButton>
+        ) : (
+          <span className="inline-flex h-8 items-center px-3 text-[13px] text-muted">Previous</span>
+        )}
+        <span className="text-[13px] tabular-nums text-ink-2">
+          Page {page} / {totalPages}
+        </span>
+        {page < totalPages ? (
+          <LinkButton href={href(page + 1)} variant="secondary" size="sm">
+            Next
+          </LinkButton>
+        ) : (
+          <span className="inline-flex h-8 items-center px-3 text-[13px] text-muted">Next</span>
+        )}
+      </div>
+    </div>
   );
 }
