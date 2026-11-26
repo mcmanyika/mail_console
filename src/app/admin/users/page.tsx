@@ -3,7 +3,9 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Mail, Users } from "lucide-react";
 import { Suspense } from "react";
+import { AdminUsersTable } from "@/components/admin/users-table";
 import { Badge } from "@/components/ui/badge";
+import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader, Panel, PanelHeader } from "@/components/ui/panel";
 import { SkeletonRows } from "@/components/ui/skeleton";
@@ -12,16 +14,14 @@ import { first, formatFullDate, formatNumber, formatRelative } from "@/lib/forma
 
 export const metadata: Metadata = { title: "Users" };
 
+const USERS_PAGE_SIZE = 10;
+
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
 export default function AdminUsersPage({ searchParams }: { searchParams: SP }) {
   return (
     <>
-      <PageHeader
-        eyebrow="Platform"
-        title="Users"
-        description="Registered accounts and pending workspace invitations. Message content is never shown here."
-      />
+      <PageHeader eyebrow="Platform" title="Users" />
       <Suspense fallback={<SkeletonRows rows={8} />}>
         <Body searchParams={searchParams} />
       </Suspense>
@@ -33,6 +33,7 @@ async function Body({ searchParams }: { searchParams: SP }) {
   await connection();
   const sp = await searchParams;
   const q = (first(sp.q) ?? "").trim().toLowerCase();
+  const page = Math.max(1, Number.parseInt(first(sp.page) ?? "1", 10) || 1);
   const [users, pending] = await Promise.all([listAdminUsers(), listAdminPendingInvitations()]);
 
   const filteredUsers = q
@@ -53,6 +54,11 @@ async function Body({ searchParams }: { searchParams: SP }) {
           i.role.includes(q),
       )
     : pending;
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * USERS_PAGE_SIZE;
+  const pagedUsers = filteredUsers.slice(pageStart, pageStart + USERS_PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -135,51 +141,64 @@ async function Body({ searchParams }: { searchParams: SP }) {
             description={q ? "Try a different search." : "Accounts appear here after signup."}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-left text-sm">
-              <thead className="border-b border-line bg-surface-muted/50 text-xs uppercase tracking-wide text-muted">
-                <tr>
-                  <th className="px-5 py-2.5 font-medium">User</th>
-                  <th className="px-5 py-2.5 font-medium">Workspaces</th>
-                  <th className="px-5 py-2.5 font-medium">Joined</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {filteredUsers.map((u) => (
-                  <tr key={u.id} className="align-top">
-                    <td className="px-5 py-3">
-                      <p className="font-medium text-ink">{u.fullName ?? u.email}</p>
-                      {u.fullName ? <p className="text-[13px] text-muted">{u.email}</p> : null}
-                      {u.isPlatformAdmin ? (
-                        <Badge tone="accent" className="mt-1.5">
-                          Platform admin
-                        </Badge>
-                      ) : null}
-                    </td>
-                    <td className="px-5 py-3">
-                      {u.memberships.length === 0 ? (
-                        <span className="text-[13px] text-muted">No workspace membership</span>
-                      ) : (
-                        <ul className="space-y-1.5">
-                          {u.memberships.map((m) => (
-                            <li key={`${u.id}-${m.workspaceId}`} className="flex flex-wrap items-center gap-2">
-                              <Link href={`/admin/workspaces/${m.workspaceId}`} className="font-medium text-ink hover:text-accent">
-                                {m.workspaceName}
-                              </Link>
-                              <Badge tone={m.role === "owner" ? "accent" : "neutral"}>{m.role}</Badge>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-3 text-[13px] text-muted">{formatRelative(u.createdAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <AdminUsersTable users={pagedUsers} />
+            <UsersPager page={currentPage} pageSize={USERS_PAGE_SIZE} total={filteredUsers.length} q={q} />
+          </>
         )}
       </Panel>
+    </div>
+  );
+}
+
+function UsersPager({
+  page,
+  pageSize,
+  total,
+  q,
+}: {
+  page: number;
+  pageSize: number;
+  total: number;
+  q: string;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (totalPages <= 1) return null;
+
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+  const href = (p: number) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (p > 1) params.set("page", String(p));
+    const qs = params.toString();
+    return qs ? `/admin/users?${qs}` : "/admin/users";
+  };
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3">
+      <p className="text-[13px] text-muted">
+        Showing {from}–{to} of {formatNumber(total)}
+      </p>
+      <div className="flex items-center gap-2">
+        {page > 1 ? (
+          <LinkButton href={href(page - 1)} variant="secondary" size="sm">
+            Previous
+          </LinkButton>
+        ) : (
+          <span className="inline-flex h-8 items-center px-3 text-[13px] text-muted">Previous</span>
+        )}
+        <span className="text-[13px] tabular-nums text-ink-2">
+          Page {page} / {totalPages}
+        </span>
+        {page < totalPages ? (
+          <LinkButton href={href(page + 1)} variant="secondary" size="sm">
+            Next
+          </LinkButton>
+        ) : (
+          <span className="inline-flex h-8 items-center px-3 text-[13px] text-muted">Next</span>
+        )}
+      </div>
     </div>
   );
 }
