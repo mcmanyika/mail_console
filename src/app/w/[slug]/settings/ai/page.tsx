@@ -17,10 +17,7 @@ export const metadata: Metadata = { title: "AI" };
 export default function AiSettingsPage({ params }: { params: Promise<{ slug: string }> }) {
   return (
     <>
-      <PageHeader
-        title="AI assist"
-        description="Summarize conversations and draft replies with OpenAI. Mail stays in your workspace; prompts are not used to train other tenants."
-      />
+      <PageHeader title="AI assist" />
       <Suspense fallback={<SkeletonRows rows={5} />}>
         <Body params={params} />
       </Suspense>

@@ -35,11 +35,6 @@ export default function PackagesPage() {
           <h1 className="mt-2 font-serif text-[36px] font-semibold leading-tight tracking-tight text-ink md:text-[42px]">
             Packages for every client workspace
           </h1>
-          <p className="mt-3 text-sm text-muted md:text-[15px]">
-            One plan per workspace. Limits apply to monthly sends and AI assists. After you sign in, subscribe from{" "}
-            <span className="text-ink">Settings → Billing</span> — Stripe Checkout records every successful payment
-            automatically.
-          </p>
         </div>
 
         <div className="mt-12 grid gap-5 md:grid-cols-3">

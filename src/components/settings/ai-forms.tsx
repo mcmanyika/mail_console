@@ -24,8 +24,7 @@ export function AiSettingsForm({
         <span>
           <span className="font-medium text-ink">Enable AI assist</span>
           <span className="mt-0.5 block text-[13px] text-muted">
-            Members with mailbox access can summarize threads and draft or improve replies. Requires{" "}
-            <code className="rounded bg-canvas-deep px-1 font-mono text-xs">OPENAI_API_KEY</code> on the server.
+            Members with mailbox access can summarize threads and draft or improve replies.
           </span>
         </span>
       </label>
