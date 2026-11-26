@@ -19,7 +19,7 @@ export function UserMenu({ email, name }: { email: string; name?: string | null 
         <form action={signOutAction}>
           <button
             type="submit"
-            className="mt-1 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-ink-2 hover:bg-canvas-deep"
+            className="mt-1 flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-ink-2 hover:bg-canvas-deep"
           >
             <LogOut className="size-4" aria-hidden /> Sign out
           </button>
