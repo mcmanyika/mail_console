@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useActionState, useRef, useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { buttonClasses } from "@/components/ui/button";
-import { Field, Input, Select, Textarea } from "@/components/ui/form-controls";
+import { Field, Input, Select } from "@/components/ui/form-controls";
+import { plainTextToEditorHtml, RichTextEditor } from "@/components/ui/rich-text-editor";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { composeAction } from "@/lib/actions/compose";
 import { discardDraftAction } from "@/lib/actions/inbox";
@@ -20,6 +21,7 @@ export function ComposeForm({ init, backHref }: { init: ComposeInit; backHref: s
   const [state, formAction] = useActionState(composeAction, idleState);
   const [subject, setSubject] = useState(init.subject);
   const [body, setBody] = useState(init.body);
+  const [bodyHtml, setBodyHtml] = useState(init.bodyHtml?.trim() || plainTextToEditorHtml(init.body));
   const [showCc, setShowCc] = useState(!!init.cc);
   const [showBcc, setShowBcc] = useState(!!init.bcc);
   const [files, setFiles] = useState<File[]>([]);
@@ -51,7 +53,16 @@ export function ComposeForm({ init, backHref }: { init: ComposeInit; backHref: s
     const t = init.templates.find((x) => x.id === id);
     if (!t) return;
     setSubject(t.subject);
-    setBody((prev) => (prev.trim() ? `${t.body}\n\n${prev}` : t.body));
+    setBody((prev) => {
+      const next = prev.trim() ? `${t.body}\n\n${prev}` : t.body;
+      setBodyHtml(plainTextToEditorHtml(next));
+      return next;
+    });
+  };
+
+  const applyBody = (text: string) => {
+    setBody(text);
+    setBodyHtml(plainTextToEditorHtml(text));
   };
 
   const isReply = init.mode === "reply" || init.mode === "replyAll";
@@ -141,18 +152,20 @@ export function ComposeForm({ init, backHref }: { init: ComposeInit; backHref: s
             threadId={init.threadId}
             subject={subject}
             body={body}
-            onApply={setBody}
+            onApply={applyBody}
           />
         ) : null}
 
         <Field label="Message" htmlFor="body" error={fe.body}>
-          <Textarea
+          <RichTextEditor
             id="body"
             name="body"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={14}
-            className="min-h-64 font-sans text-[14px] leading-relaxed"
+            htmlName="bodyHtml"
+            value={bodyHtml}
+            onChange={(plain, html) => {
+              setBody(plain);
+              setBodyHtml(html);
+            }}
             placeholder="Write your message…"
           />
         </Field>

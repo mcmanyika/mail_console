@@ -110,3 +110,39 @@ dialog::backdrop {
     animation: none;
   }
 }
+
+/* TipTap compose editor */
+.prose-compose p {
+  margin: 0 0 0.75em;
+}
+.prose-compose p:last-child {
+  margin-bottom: 0;
+}
+.prose-compose ul,
+.prose-compose ol {
+  margin: 0 0 0.75em;
+  padding-left: 1.25rem;
+}
+.prose-compose ul {
+  list-style: disc;
+}
+.prose-compose ol {
+  list-style: decimal;
+}
+.prose-compose blockquote {
+  margin: 0 0 0.75em;
+  border-left: 3px solid var(--line-strong);
+  padding-left: 0.75rem;
+  color: var(--muted);
+}
+.prose-compose a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.prose-compose p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--muted-2);
+}

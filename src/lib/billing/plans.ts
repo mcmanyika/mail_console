@@ -33,7 +33,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     maxMailboxes: 5,
     maxSeats: 3,
     maxCampaignContacts: 500,
-    features: ["Shared inbox & domains", "Templates", "Campaigns up to 500 contacts", "AI assist (50/mo)"],
+    features: ["Shared inbox & domains", "5 mailboxes", "Campaigns up to 500 contacts", "AI assist (50/mo)"],
   },
   growth: {
     id: "growth",
@@ -79,4 +79,10 @@ export function formatPlanPrice(plan: PlanDef): string {
 export function planLimits(id: PlanId): { monthly_sending_limit: number; monthly_ai_limit: number } {
   const p = PLANS[id];
   return { monthly_sending_limit: p.monthlySendingLimit, monthly_ai_limit: p.monthlyAiLimit };
+}
+
+/** Max contacts on a campaign list for this plan. Custom falls back to Scale's catalog cap. */
+export function planCampaignContactLimit(plan: WorkspacePlan | string | null | undefined): number {
+  const p = getPlan(plan);
+  return p?.maxCampaignContacts ?? PLANS.scale.maxCampaignContacts;
 }

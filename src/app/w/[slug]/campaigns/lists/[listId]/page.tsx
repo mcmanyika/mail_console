@@ -10,8 +10,10 @@ import { PageHeader, Panel, PanelHeader } from "@/components/ui/panel";
 import { SkeletonRows } from "@/components/ui/skeleton";
 import { deleteAudienceListAction, deleteContactAction } from "@/lib/actions/campaigns";
 import { roleAtLeast } from "@/lib/auth/authz";
+import { getPlan } from "@/lib/billing/plans";
 import { getAudienceList } from "@/lib/data/campaigns";
 import { getWorkspaceContext } from "@/lib/data/workspace";
+import { contactLimitForWorkspacePlan } from "@/lib/email/campaigns";
 import { Users } from "lucide-react";
 
 export const metadata: Metadata = { title: "Audience list" };
@@ -34,6 +36,8 @@ async function Body({ params }: { params: Promise<{ slug: string; listId: string
   if (!detail) notFound();
   const canAdmin = roleAtLeast(ctx.role, "admin");
   const { list, contacts } = detail;
+  const contactLimit = contactLimitForWorkspacePlan(ctx.workspace.plan);
+  const planName = getPlan(ctx.workspace.plan)?.name ?? "Custom";
 
   return (
     <div className="space-y-6">
@@ -66,7 +70,7 @@ async function Body({ params }: { params: Promise<{ slug: string; listId: string
         <Panel className="p-5">
           <h2 className="mb-4 text-[15px] font-semibold text-ink">Import contacts</h2>
           <div className="max-w-2xl">
-            <ImportContactsForm slug={slug} listId={list.id} />
+            <ImportContactsForm slug={slug} listId={list.id} contactLimit={contactLimit} planName={planName} />
           </div>
         </Panel>
       ) : null}

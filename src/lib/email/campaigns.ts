@@ -1,18 +1,25 @@
 import { writeAudit } from "@/lib/audit";
+import { planCampaignContactLimit } from "@/lib/billing/plans";
 import { isValidEmailAddress, normalizeAddress } from "@/lib/email/address";
 import { discardDraftRow, insertDraftMessage, resolveSender } from "@/lib/email/compose";
 import { enqueueOutboundMessage } from "@/lib/email/outbox";
+import { getQuotaStatus } from "@/lib/email/quota";
 import { makeSnippet, textToHtml } from "@/lib/email/sanitize";
 import { renderTemplateString, TemplateError, type TemplateVars } from "@/lib/email/templates";
 import type { AdminClient } from "@/lib/supabase/admin";
-import type { CampaignRecipientRow, CampaignRow, Json } from "@/lib/types/database";
+import type { CampaignRecipientRow, CampaignRow, Json, WorkspacePlan } from "@/lib/types/database";
 
 export const CAMPAIGN_LIMITS = {
+  /** Absolute ceiling across all plans (Scale). Per-plan caps are lower. */
   maxContactsPerList: 5_000,
   maxCsvBytes: 2_000_000,
   fanOutBatchSize: 25,
   maxCampaignsPerTick: 5,
 } as const;
+
+export function contactLimitForWorkspacePlan(plan: WorkspacePlan | string | null | undefined): number {
+  return Math.min(CAMPAIGN_LIMITS.maxContactsPerList, planCampaignContactLimit(plan));
+}
 
 export class CampaignError extends Error {
   constructor(
@@ -198,6 +205,33 @@ export async function startCampaign(
     .eq("workspace_id", opts.workspaceId);
   if (cErr) throw new Error(cErr.message);
   if (!count) throw new CampaignError("This list has no contacts", "empty");
+
+  const { data: workspace, error: wErr } = await admin
+    .from("workspaces")
+    .select("plan, monthly_sending_limit, status")
+    .eq("id", opts.workspaceId)
+    .maybeSingle();
+  if (wErr) throw new Error(wErr.message);
+  if (!workspace) throw new CampaignError("Workspace not found", "not_found");
+  if (workspace.status !== "active") {
+    throw new CampaignError("This workspace cannot send while suspended", "inactive");
+  }
+
+  const planCap = contactLimitForWorkspacePlan(workspace.plan);
+  if (count > planCap) {
+    throw new CampaignError(
+      `Your ${workspace.plan === "custom" ? "plan" : workspace.plan} package allows at most ${planCap.toLocaleString()} contacts per campaign (this list has ${count.toLocaleString()}). Remove contacts or upgrade.`,
+      "too_large",
+    );
+  }
+
+  const quota = await getQuotaStatus(admin, opts.workspaceId);
+  if (count > quota.remaining) {
+    throw new CampaignError(
+      `This campaign needs ${count.toLocaleString()} sends but only ${quota.remaining.toLocaleString()} of your ${quota.limit.toLocaleString()}/mo package allowance remain. Wait for the monthly reset, raise the limit, or shorten the list.`,
+      "quota",
+    );
+  }
 
   // Clear previous recipients if re-starting a scheduled draft copy (shouldn't happen).
   await admin.from("campaign_recipients").delete().eq("campaign_id", campaign.id);

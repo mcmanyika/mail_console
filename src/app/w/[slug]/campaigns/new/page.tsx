@@ -6,7 +6,12 @@ import { Alert } from "@/components/ui/alert";
 import { LinkButton } from "@/components/ui/button";
 import { PageHeader, Panel } from "@/components/ui/panel";
 import { SkeletonRows } from "@/components/ui/skeleton";
+import { getPlan } from "@/lib/billing/plans";
 import { getCampaignFormOptions } from "@/lib/data/campaigns";
+import { getWorkspaceContext } from "@/lib/data/workspace";
+import { contactLimitForWorkspacePlan } from "@/lib/email/campaigns";
+import { getQuotaStatus } from "@/lib/email/quota";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = { title: "New campaign" };
 
@@ -24,7 +29,13 @@ export default function NewCampaignPage({ params }: { params: Promise<{ slug: st
 async function Body({ params }: { params: Promise<{ slug: string }> }) {
   await connection();
   const { slug } = await params;
-  const { lists, sendMailboxes, templates } = await getCampaignFormOptions(slug);
+  const ctx = await getWorkspaceContext(slug);
+  const [{ lists, sendMailboxes, templates }, quota] = await Promise.all([
+    getCampaignFormOptions(slug),
+    getQuotaStatus(createAdminClient(), ctx.workspace.id),
+  ]);
+  const contactLimit = contactLimitForWorkspacePlan(ctx.workspace.plan);
+  const planName = getPlan(ctx.workspace.plan)?.name ?? "Custom";
 
   if (!lists.length) {
     return (
@@ -59,6 +70,10 @@ async function Body({ params }: { params: Promise<{ slug: string }> }) {
           subject: t.subject,
           body: t.body_text ?? "",
         }))}
+        contactLimit={contactLimit}
+        planName={planName}
+        sendsRemaining={quota.remaining}
+        monthlySendLimit={quota.limit}
       />
     </Panel>
   );

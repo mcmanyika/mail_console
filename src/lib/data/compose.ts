@@ -18,6 +18,8 @@ export type ComposeInit = {
   bcc: string;
   subject: string;
   body: string;
+  /** Sanitized HTML when editing a draft that was composed rich; otherwise empty. */
+  bodyHtml: string;
   attachments: { id: string; filename: string; size: number }[];
   forwardable: { id: string; filename: string; size: number }[];
   sendMailboxes: { id: string; address: string; label: string }[];
@@ -74,7 +76,7 @@ export async function loadCompose(
     if (!ID_RE.test(params.draft)) return { status: "not_found" };
     const { data: d } = await supabase
       .from("messages")
-      .select("id, mailbox_id, thread_id, subject, text_body, workspace_id")
+      .select("id, mailbox_id, thread_id, subject, text_body, html_body, workspace_id")
       .eq("id", params.draft)
       .eq("direction", "draft")
       .eq("author_user_id", ctx.user.id)
@@ -103,6 +105,7 @@ export async function loadCompose(
         bcc: list("bcc"),
         subject: d.subject,
         body: d.text_body ?? "",
+        bodyHtml: d.html_body ?? "",
         attachments: (atts ?? []).map((a) => ({ id: a.id, filename: a.filename, size: Number(a.size_bytes) })),
         forwardable: [],
         heading: d.thread_id ? "Reply draft" : "Draft",
@@ -129,6 +132,7 @@ export async function loadCompose(
         bcc: "",
         subject: "",
         body: "",
+        bodyHtml: "",
         attachments: [],
         forwardable: [],
         heading: "New message",
@@ -195,6 +199,7 @@ export async function loadCompose(
         cc: cc.join(", "),
         subject: prefix(parent.subject, "Re"),
         body: `\n\nOn ${whenLabel}, ${displayName(parent.from_address)} wrote:\n${quote(text)}`,
+        bodyHtml: "",
         forwardable: [],
         heading: mode === "reply" ? "Reply" : "Reply all",
       },
@@ -220,6 +225,7 @@ export async function loadCompose(
         cc: "",
         subject: prefix(parent.subject, "Fwd"),
         body: `\n\n${header}\n\n${text}`,
+        bodyHtml: "",
         forwardable: attachments,
         heading: "Forward",
       },
@@ -238,6 +244,7 @@ export async function loadCompose(
       bcc: addrs("bcc").join(", "),
       subject: parent.subject,
       body: parent.text_body ?? text,
+      bodyHtml: parent.html_body ?? "",
       forwardable: attachments,
       heading: "Edit & resend",
     },

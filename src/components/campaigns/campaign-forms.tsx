@@ -20,7 +20,17 @@ export function CreateListForm({ slug }: { slug: string }) {
   );
 }
 
-export function ImportContactsForm({ slug, listId }: { slug: string; listId: string }) {
+export function ImportContactsForm({
+  slug,
+  listId,
+  contactLimit,
+  planName,
+}: {
+  slug: string;
+  listId: string;
+  contactLimit: number;
+  planName: string;
+}) {
   return (
     <ActionForm action={importContactsAction}>
       <input type="hidden" name="slug" value={slug} />
@@ -28,7 +38,7 @@ export function ImportContactsForm({ slug, listId }: { slug: string; listId: str
       <ActionField
         label="CSV file"
         name="csv"
-        hint="Header row required. Must include email; optional name and other columns become {{variables}}."
+        hint={`Header row required. Must include email. ${planName} package: max ${contactLimit.toLocaleString()} contacts per list.`}
       >
         <Input id="csv" name="csv" type="file" accept=".csv,text/csv,text/plain" />
       </ActionField>
@@ -45,15 +55,27 @@ export function CreateCampaignForm({
   lists,
   mailboxes,
   templates,
+  contactLimit,
+  planName,
+  sendsRemaining,
+  monthlySendLimit,
 }: {
   slug: string;
   lists: { id: string; name: string; contactCount: number }[];
   mailboxes: { id: string; label: string }[];
   templates: { id: string; name: string; subject: string; body: string }[];
+  contactLimit: number;
+  planName: string;
+  sendsRemaining: number;
+  monthlySendLimit: number;
 }) {
   return (
     <ActionForm action={createCampaignAction} className="space-y-4">
       <input type="hidden" name="slug" value={slug} />
+      <p className="rounded-md border border-line bg-canvas-deep/50 px-3 py-2 text-[13px] text-muted">
+        {planName} package: lists up to {contactLimit.toLocaleString()} contacts · {sendsRemaining.toLocaleString()} of{" "}
+        {monthlySendLimit.toLocaleString()} monthly sends left. Campaigns larger than either limit are blocked.
+      </p>
       <ActionField label="Campaign name" name="name">
         <Input id="name" name="name" required maxLength={120} placeholder="March newsletter" />
       </ActionField>
@@ -62,11 +84,16 @@ export function CreateCampaignForm({
           <option value="" disabled>
             Choose a list…
           </option>
-          {lists.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name} ({l.contactCount})
-            </option>
-          ))}
+          {lists.map((l) => {
+            const overPlan = l.contactCount > contactLimit;
+            const overQuota = l.contactCount > sendsRemaining;
+            const suffix = overPlan ? " — over package" : overQuota ? " — over monthly quota" : "";
+            return (
+              <option key={l.id} value={l.id} disabled={overPlan || overQuota || l.contactCount < 1}>
+                {l.name} ({l.contactCount}){suffix}
+              </option>
+            );
+          })}
         </Select>
       </ActionField>
       <ActionField label="From mailbox" name="mailboxId">

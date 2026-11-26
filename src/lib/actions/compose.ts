@@ -8,7 +8,7 @@ import { requireMailboxAccess } from "@/lib/auth/authz";
 import { requireWorkspaceAction, formatFrom } from "@/lib/data/workspace";
 import { getMaxAttachmentBytes } from "@/lib/env";
 import { enqueueOutboundMessage, processOutbox } from "@/lib/email/outbox";
-import { makeSnippet, textToHtml } from "@/lib/email/sanitize";
+import { htmlToText, makeSnippet, sanitizeEmailHtml, textToHtml } from "@/lib/email/sanitize";
 import { buildReplyHeaders, generateRfcMessageId } from "@/lib/email/threading";
 import { parseRecipients } from "@/lib/format";
 import { getEmailAdapter } from "@/lib/resend";
@@ -61,17 +61,22 @@ export async function composeAction(_prev: ActionState, formData: FormData): Pro
     if (bcc.invalid.length) fieldErrors.bcc = `Not a valid address: ${bcc.invalid[0]}`;
 
     const subject = formString(formData, "subject").slice(0, MAX_SUBJECT);
-    const body = (typeof formData.get("body") === "string" ? (formData.get("body") as string) : "").replace(/\r\n/g, "\n");
-    if (body.length > MAX_BODY) fieldErrors.body = "Message is too long";
+    const bodyRaw = (typeof formData.get("body") === "string" ? (formData.get("body") as string) : "").replace(/\r\n/g, "\n");
+    const bodyHtmlRaw = typeof formData.get("bodyHtml") === "string" ? (formData.get("bodyHtml") as string) : "";
+    if (bodyRaw.length > MAX_BODY || bodyHtmlRaw.length > MAX_BODY) fieldErrors.body = "Message is too long";
 
     const files = formData.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
     const removeIds = formData.getAll("removeAttachment").filter((v): v is string => typeof v === "string");
     const forwardIds = formData.getAll("forwardAttachment").filter((v): v is string => typeof v === "string");
 
+    const richHtml = bodyHtmlRaw.trim() ? sanitizeEmailHtml(bodyHtmlRaw, { allowRemoteImages: true }) : "";
+    const textBody = bodyRaw.trim() ? bodyRaw : richHtml ? htmlToText(richHtml) : "";
+    const htmlBody = richHtml || (textBody ? textToHtml(textBody) : null);
+
     if (intent === "send") {
       if (to.valid.length === 0 && !fieldErrors.to) fieldErrors.to = "Add at least one recipient";
       if (!subject) fieldErrors.subject = "Add a subject";
-      if (!body.trim() && files.length === 0 && forwardIds.length === 0 && !draftId) fieldErrors.body = "Write a message or attach a file";
+      if (!textBody.trim() && files.length === 0 && forwardIds.length === 0 && !draftId) fieldErrors.body = "Write a message or attach a file";
     }
     if (Object.keys(fieldErrors).length) return fail("Check the highlighted fields.", fieldErrors);
 
@@ -86,9 +91,9 @@ export async function composeAction(_prev: ActionState, formData: FormData): Pro
     const fromAddress = formatFrom({ address: access.mailbox.address, displayName: access.mailbox.display_name });
     const bodyFields = {
       subject,
-      text_body: body,
-      html_body: textToHtml(body),
-      snippet: makeSnippet({ text: body }),
+      text_body: textBody,
+      html_body: htmlBody,
+      snippet: makeSnippet({ text: textBody, html: htmlBody }),
       from_address: fromAddress,
     };
 

@@ -5,8 +5,15 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { writeAudit } from "@/lib/audit";
 import { requireMailboxAccess, roleAtLeast } from "@/lib/auth/authz";
+import { getPlan } from "@/lib/billing/plans";
 import { requireWorkspaceAction } from "@/lib/data/workspace";
-import { CampaignError, parseContactsCsv, startCampaign } from "@/lib/email/campaigns";
+import {
+  CampaignError,
+  contactLimitForWorkspacePlan,
+  parseContactsCsv,
+  startCampaign,
+} from "@/lib/email/campaigns";
+import { getQuotaStatus } from "@/lib/email/quota";
 import { textToHtml } from "@/lib/email/sanitize";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/types/database";
@@ -83,12 +90,17 @@ export async function importContactsAction(_prev: ActionState, formData: FormDat
       return fail(errors[0] ?? "No valid contacts found in the CSV.");
     }
 
+    const planCap = contactLimitForWorkspacePlan(ctx.workspace.plan);
+    const planName = getPlan(ctx.workspace.plan)?.name ?? "Custom";
     const { count: existing } = await ctx.supabase
       .from("audience_contacts")
       .select("id", { count: "exact", head: true })
       .eq("list_id", listId);
-    if ((existing ?? 0) + contacts.length > 5000) {
-      return fail(`This import would exceed the 5,000 contact limit (list has ${existing ?? 0}).`);
+    const nextTotal = (existing ?? 0) + contacts.length;
+    if (nextTotal > planCap) {
+      return fail(
+        `Your ${planName} package allows at most ${planCap.toLocaleString()} contacts per list (list has ${existing ?? 0}; import has ${contacts.length}).`,
+      );
     }
 
     const admin = createAdminClient();
@@ -182,6 +194,31 @@ export async function createCampaignAction(_prev: ActionState, formData: FormDat
       .eq("workspace_id", ctx.workspace.id)
       .maybeSingle();
     if (!list) return fail("Pick one of this workspace's lists.", { listId: "Invalid list" });
+
+    const { count: listSize } = await ctx.supabase
+      .from("audience_contacts")
+      .select("id", { count: "exact", head: true })
+      .eq("list_id", v.listId)
+      .eq("workspace_id", ctx.workspace.id);
+    const planCap = contactLimitForWorkspacePlan(ctx.workspace.plan);
+    const planName = getPlan(ctx.workspace.plan)?.name ?? "Custom";
+    if ((listSize ?? 0) > planCap) {
+      return fail(
+        `Your ${planName} package allows at most ${planCap.toLocaleString()} contacts per campaign (this list has ${(listSize ?? 0).toLocaleString()}).`,
+        { listId: "List too large for package" },
+      );
+    }
+    if ((listSize ?? 0) < 1) {
+      return fail("That list has no contacts yet.", { listId: "Empty list" });
+    }
+
+    const quota = await getQuotaStatus(createAdminClient(), ctx.workspace.id);
+    if ((listSize ?? 0) > quota.remaining) {
+      return fail(
+        `This list needs ${(listSize ?? 0).toLocaleString()} sends but only ${quota.remaining.toLocaleString()} of your ${quota.limit.toLocaleString()}/mo package allowance remain.`,
+        { listId: "Over monthly send limit" },
+      );
+    }
 
     const scheduleRaw = v.scheduleAt?.trim();
     let scheduledAt: string | null = null;
@@ -299,8 +336,15 @@ export async function resumeCampaignAction(slug: string, campaignId: string, for
     .maybeSingle();
   if (!campaign || campaign.status !== "paused") throw new Error("Only paused campaigns can be resumed");
   await requireMailboxAccess(ctx.supabase, ctx.user.id, campaign.mailbox_id, "send");
-  await createAdminClient().from("campaigns").update({ status: "sending" }).eq("id", campaignId);
-  await writeAudit(createAdminClient(), {
+  const admin = createAdminClient();
+  const quota = await getQuotaStatus(admin, ctx.workspace.id);
+  if (quota.remaining < 1) {
+    throw new Error(
+      `No monthly sends left on your package (${quota.limit.toLocaleString()}/mo used). Resume after the month resets or raise the limit.`,
+    );
+  }
+  await admin.from("campaigns").update({ status: "sending" }).eq("id", campaignId);
+  await writeAudit(admin, {
     workspaceId: ctx.workspace.id,
     actorUserId: ctx.user.id,
     action: "campaign.resumed",
