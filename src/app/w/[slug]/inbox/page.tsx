@@ -6,15 +6,18 @@ import { InboxToolbar } from "@/components/inbox/inbox-toolbar";
 import { EmptyFolder, MailboxDenied, NoMailboxAccess, NoSelection } from "@/components/inbox/states";
 import { ThreadList } from "@/components/inbox/thread-list";
 import { ThreadView } from "@/components/inbox/thread-view";
+import { LinkButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton, SkeletonRows } from "@/components/ui/skeleton";
 import { getThread, getUnreadCounts, listFolder, parseFolder } from "@/lib/data/inbox";
 import { getReadableMailboxes, getWorkspaceContext } from "@/lib/data/workspace";
-import { first } from "@/lib/format";
+import { first, formatNumber } from "@/lib/format";
 import { inboxHref } from "@/lib/inbox-links";
 import { Lock, SearchX } from "lucide-react";
 
 export const metadata: Metadata = { title: "Inbox" };
+
+const INBOX_PAGE_SIZE = 10;
 
 type Params = Promise<{ slug: string }>;
 type SP = Promise<Record<string, string | string[] | undefined>>;
@@ -54,11 +57,17 @@ async function InboxBody({ params, searchParams }: { params: Params; searchParam
   const folder = parseFolder(first(sp.folder));
   const mailboxParam = first(sp.mailbox) ?? null;
   const q = (first(sp.q) ?? "").slice(0, 80);
+  const page = Math.max(1, Number.parseInt(first(sp.page) ?? "1", 10) || 1);
   const threadParam = first(sp.thread) ?? null;
   if (mailboxParam && !mailboxes.some((m) => m.id === mailboxParam)) return <MailboxDenied slug={slug} />;
 
   const unread = await getUnreadCounts(slug);
-  const listPath = inboxHref(slug, { folder, mailbox: mailboxParam, q });
+  const listPath = inboxHref(slug, {
+    folder,
+    mailbox: mailboxParam,
+    q,
+    extra: page > 1 ? { page: String(page) } : undefined,
+  });
   const hasThread = !!threadParam;
 
   return (
@@ -75,9 +84,8 @@ async function InboxBody({ params, searchParams }: { params: Params; searchParam
               folder={folder}
               mailboxId={mailboxParam}
               q={q}
+              page={page}
               activeThread={threadParam}
-              showMailboxLabel={!mailboxParam && mailboxes.length > 1}
-              labels={Object.fromEntries(mailboxes.map((m) => [m.id, m.address]))}
             />
           </Suspense>
         </section>
@@ -108,31 +116,104 @@ async function ListBody({
   folder,
   mailboxId,
   q,
+  page,
   activeThread,
-  showMailboxLabel,
-  labels,
 }: {
   slug: string;
   folder: ReturnType<typeof parseFolder>;
   mailboxId: string | null;
   q: string;
+  page: number;
   activeThread: string | null;
-  showMailboxLabel: boolean;
-  labels: Record<string, string>;
 }) {
   const { items, truncated } = await listFolder(slug, { folder, mailboxId, q });
   if (items.length === 0) return <EmptyFolder folder={folder} searching={!!q} />;
+
+  const totalPages = Math.max(1, Math.ceil(items.length / INBOX_PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * INBOX_PAGE_SIZE;
+  const pagedItems = items.slice(pageStart, pageStart + INBOX_PAGE_SIZE);
+
   return (
-    <ThreadList
-      slug={slug}
-      items={items}
-      folder={folder}
-      mailboxId={mailboxId}
-      q={q}
-      activeThread={activeThread}
-      mailboxLabels={showMailboxLabel ? labels : null}
-      truncated={truncated}
-    />
+    <>
+      <ThreadList
+        slug={slug}
+        items={pagedItems}
+        folder={folder}
+        mailboxId={mailboxId}
+        q={q}
+        page={currentPage}
+        activeThread={activeThread}
+        truncated={truncated}
+      />
+      <InboxPager
+        slug={slug}
+        folder={folder}
+        mailboxId={mailboxId}
+        q={q}
+        page={currentPage}
+        pageSize={INBOX_PAGE_SIZE}
+        total={items.length}
+      />
+    </>
+  );
+}
+
+function InboxPager({
+  slug,
+  folder,
+  mailboxId,
+  q,
+  page,
+  pageSize,
+  total,
+}: {
+  slug: string;
+  folder: string;
+  mailboxId: string | null;
+  q: string;
+  page: number;
+  pageSize: number;
+  total: number;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  if (totalPages <= 1) return null;
+
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+  const href = (p: number) =>
+    inboxHref(slug, {
+      folder,
+      mailbox: mailboxId,
+      q,
+      extra: p > 1 ? { page: String(p) } : undefined,
+    });
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-3 py-2.5">
+      <p className="text-[12px] text-muted">
+        {from}–{to} of {formatNumber(total)}
+      </p>
+      <div className="flex items-center gap-1.5">
+        {page > 1 ? (
+          <LinkButton href={href(page - 1)} variant="secondary" size="sm">
+            Prev
+          </LinkButton>
+        ) : (
+          <span className="inline-flex h-8 items-center px-2 text-[12px] text-muted">Prev</span>
+        )}
+        <span className="text-[12px] tabular-nums text-ink-2">
+          {page}/{totalPages}
+        </span>
+        {page < totalPages ? (
+          <LinkButton href={href(page + 1)} variant="secondary" size="sm">
+            Next
+          </LinkButton>
+        ) : (
+          <span className="inline-flex h-8 items-center px-2 text-[12px] text-muted">Next</span>
+        )}
+      </div>
+    </div>
   );
 }
 

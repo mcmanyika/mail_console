@@ -84,12 +84,7 @@ export async function discardDraftAction(slug: string, draftId: string, formData
  * the caller can read. Uses the service role after the grant check — RLS only
  * allows deleting one's own drafts.
  */
-export async function deleteThreadAction(formData: FormData): Promise<void> {
-  const slug = formString(formData, "slug");
-  const threadId = formString(formData, "threadId");
-  const returnTo = formString(formData, "returnTo");
-  if (!slug || !threadId) throw new Error("Missing conversation");
-
+async function deleteThread(slug: string, threadId: string): Promise<void> {
   const ctx = await requireWorkspaceAction({ slug });
   const admin = createAdminClient();
   const { data: thread } = await admin
@@ -133,7 +128,87 @@ export async function deleteThreadAction(formData: FormData): Promise<void> {
     resourceId: threadId,
     metadata: { mailboxId: thread.mailbox_id, messageCount: messageIds.length },
   });
+}
 
+export async function deleteThreadAction(formData: FormData): Promise<void> {
+  const slug = formString(formData, "slug");
+  const threadId = formString(formData, "threadId");
+  const returnTo = formString(formData, "returnTo");
+  if (!slug || !threadId) throw new Error("Missing conversation");
+
+  await deleteThread(slug, threadId);
   revalidatePath(`/w/${slug}`, "layout");
   redirect(safeReturn(slug, returnTo || undefined));
+}
+
+function formIds(formData: FormData, name: string): string[] {
+  return [...new Set(formData.getAll(name).map((v) => String(v).trim()).filter(Boolean))].slice(0, 100);
+}
+
+export async function bulkArchiveThreadsAction(formData: FormData): Promise<void> {
+  const slug = formString(formData, "slug");
+  const returnTo = formString(formData, "returnTo");
+  const archived = formString(formData, "archived") === "1";
+  const threadIds = formIds(formData, "threadId");
+  if (!slug || threadIds.length === 0) throw new Error("Nothing selected");
+
+  for (const threadId of threadIds) {
+    await setThreadState(slug, threadId, archived ? { is_archived: true, is_read: true } : { is_archived: false });
+  }
+  redirect(safeReturn(slug, returnTo || undefined));
+}
+
+export async function bulkMarkUnreadAction(formData: FormData): Promise<void> {
+  const slug = formString(formData, "slug");
+  const returnTo = formString(formData, "returnTo");
+  const threadIds = formIds(formData, "threadId");
+  if (!slug || threadIds.length === 0) throw new Error("Nothing selected");
+
+  for (const threadId of threadIds) {
+    await setThreadState(slug, threadId, { is_read: false });
+  }
+  redirect(safeReturn(slug, returnTo || undefined));
+}
+
+export async function bulkDeleteThreadsAction(formData: FormData): Promise<void> {
+  const slug = formString(formData, "slug");
+  const returnTo = formString(formData, "returnTo");
+  const threadIds = formIds(formData, "threadId");
+  if (!slug || threadIds.length === 0) throw new Error("Nothing selected");
+
+  for (const threadId of threadIds) {
+    await deleteThread(slug, threadId);
+  }
+  revalidatePath(`/w/${slug}`, "layout");
+  redirect(safeReturn(slug, returnTo || undefined));
+}
+
+export async function bulkDiscardDraftsAction(formData: FormData): Promise<void> {
+  const slug = formString(formData, "slug");
+  const draftIds = formIds(formData, "draftId");
+  if (!slug || draftIds.length === 0) throw new Error("Nothing selected");
+
+  const ctx = await requireWorkspaceAction({ slug });
+  const admin = createAdminClient();
+  for (const draftId of draftIds) {
+    const { data: draft } = await ctx.supabase
+      .from("messages")
+      .select("id, workspace_id")
+      .eq("id", draftId)
+      .eq("direction", "draft")
+      .eq("author_user_id", ctx.user.id)
+      .maybeSingle();
+    if (!draft || draft.workspace_id !== ctx.workspace.id) continue;
+    const { data: atts } = await ctx.supabase.from("attachments").select("storage_path").eq("message_id", draftId);
+    const { error } = await ctx.supabase.from("messages").delete().eq("id", draftId).eq("author_user_id", ctx.user.id);
+    if (error) throw new Error(error.message);
+    if (atts?.length) {
+      await admin.storage
+        .from("attachments")
+        .remove(atts.map((a) => a.storage_path))
+        .catch(() => undefined);
+    }
+  }
+  revalidatePath(`/w/${slug}`, "layout");
+  redirect(`/w/${slug}/inbox?folder=drafts`);
 }
