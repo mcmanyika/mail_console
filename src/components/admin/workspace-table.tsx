@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input, Select } from "@/components/ui/form-controls";
 import { Panel, PanelHeader } from "@/components/ui/panel";
 import { UsageBar } from "@/components/ui/usage-bar";
+import { formatPlanPrice, getPlan } from "@/lib/billing/plans";
 import type { AdminWorkspaceRow, Verification } from "@/lib/data/admin";
 import { formatNumber } from "@/lib/format";
 
@@ -73,6 +74,7 @@ export function WorkspaceTable({
             <thead>
               <tr className="border-b border-line text-xs font-medium uppercase tracking-wide text-muted">
                 <th className="px-5 py-2.5 font-medium">Workspace</th>
+                <th className="px-3 py-2.5 font-medium">Plan</th>
                 <th className="px-3 py-2.5 font-medium">Domains</th>
                 <th className="px-3 py-2.5 font-medium">Verification</th>
                 <th className="w-56 px-3 py-2.5 font-medium">Usage this month</th>
@@ -92,6 +94,17 @@ export function WorkspaceTable({
                         {w.name}
                       </Link>
                       <div className="font-mono text-xs text-muted">{w.slug}</div>
+                    </td>
+                    <td className="px-3 py-3.5">
+                      {(() => {
+                        const p = getPlan(w.plan);
+                        return (
+                          <div>
+                            <Badge tone={p ? "accent" : "neutral"}>{p?.name ?? "Custom"}</Badge>
+                            {p ? <div className="mt-1 text-xs tabular-nums text-muted">{formatPlanPrice(p)}</div> : null}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-3 py-3.5">
                       {w.domains.length === 0 ? (

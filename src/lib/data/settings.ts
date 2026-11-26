@@ -8,6 +8,7 @@ import type {
   EmailTemplateRow,
   MailboxPermission,
   OutboxStatus,
+  PaymentRow,
   WorkspaceRole,
 } from "@/lib/types/database";
 import { getWorkspaceContext, type WorkspaceContext } from "./workspace";
@@ -145,6 +146,19 @@ export async function getIntegrations(ctx: WorkspaceContext) {
     .select("id, name, allowed_mailbox_id, key_prefix, last_used_at, revoked_at, created_at")
     .eq("workspace_id", ctx.workspace.id)
     .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+// ---- billing -------------------------------------------------------------------------------------------
+/** Payment ledger rows written by the Stripe webhook (admin+ RLS). */
+export async function getPayments(ctx: WorkspaceContext): Promise<PaymentRow[]> {
+  const { data, error } = await ctx.supabase
+    .from("payments")
+    .select("*")
+    .eq("workspace_id", ctx.workspace.id)
+    .order("paid_at", { ascending: false })
+    .limit(100);
   if (error) throw new Error(error.message);
   return data ?? [];
 }

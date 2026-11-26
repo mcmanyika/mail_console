@@ -8,12 +8,13 @@ export const DEFAULT_AUTHED_PATH = "/dashboard";
 export const PUBLIC_PATH_PREFIXES = [
   "/login", // redirects to `/`
   "/signup",
+  "/packages", // public pricing catalog
   "/auth", // OAuth/magic-link/confirm callbacks
   "/invite", // invitation acceptance landing (does its own token check)
   "/forgot-password",
   "/reset-password",
   // Machine-to-machine endpoints that authenticate themselves:
-  "/api/webhooks", // Svix-signed provider webhooks
+  "/api/webhooks", // Svix (Resend) + Stripe-signed webhooks
   "/api/v1", // transactional API (Bearer app key)
   "/api/cron", // outbox worker (CRON_SECRET)
   "/api/health",

@@ -57,11 +57,19 @@ async function SignupLink({ searchParams }: { searchParams: SP }) {
   if (first(sp.email)) qs.set("email", first(sp.email) as string);
   const suffix = qs.size ? `?${qs}` : "";
   return (
-    <>
-      New to Mail Console?{" "}
-      <Link href={`/signup${suffix}`} className="font-medium text-accent hover:underline">
-        Create an account
-      </Link>
-    </>
+    <div className="space-y-2">
+      <p>
+        New to Mail Console?{" "}
+        <Link href={`/signup${suffix}`} className="font-medium text-accent hover:underline">
+          Create an account
+        </Link>
+      </p>
+      <p>
+        <Link href="/packages" className="font-medium text-accent hover:underline">
+          View packages
+        </Link>
+        <span className="text-muted"> — Starter, Growth &amp; Scale</span>
+      </p>
+    </div>
   );
 }

@@ -5,6 +5,7 @@ describe("routes", () => {
   it("knows public paths on segment boundaries", () => {
     expect(isPublicPath("/")).toBe(true);
     expect(isPublicPath("/login")).toBe(true);
+    expect(isPublicPath("/packages")).toBe(true);
     expect(isPublicPath("/api/webhooks/resend")).toBe(true);
     expect(isPublicPath("/auth/callback")).toBe(true);
     expect(isPublicPath("/loginx")).toBe(false);

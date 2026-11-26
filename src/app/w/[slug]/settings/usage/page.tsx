@@ -5,6 +5,8 @@ import { Alert } from "@/components/ui/alert";
 import { PageHeader, Panel, PanelHeader } from "@/components/ui/panel";
 import { SkeletonRows } from "@/components/ui/skeleton";
 import { UsageBar } from "@/components/ui/usage-bar";
+import { Badge } from "@/components/ui/badge";
+import { formatPlanPrice, getPlan } from "@/lib/billing/plans";
 import { gateSection, getAdminUsageExtras, getUsage } from "@/lib/data/settings";
 import { formatNumber, formatRelative, monthLabel } from "@/lib/format";
 import { roleAtLeast } from "@/lib/auth/authz";
@@ -30,6 +32,7 @@ async function Body({ params }: { params: Promise<{ slug: string }> }) {
   const ratio = quota.limit > 0 ? used / quota.limit : 0;
   const isAdmin = roleAtLeast(ctx.role, "admin");
   const extras = isAdmin ? await getAdminUsageExtras(ctx) : null;
+  const plan = getPlan(ctx.workspace.plan);
 
   return (
     <div className="space-y-6">
@@ -44,8 +47,18 @@ async function Body({ params }: { params: Promise<{ slug: string }> }) {
       ) : null}
 
       <Panel>
-        <PanelHeader title={`${monthLabel(quota.yearMonth)} ${quota.yearMonth.slice(0, 4)}`} description="Resets on the 1st, UTC." />
+        <PanelHeader
+          title={`${monthLabel(quota.yearMonth)} ${quota.yearMonth.slice(0, 4)}`}
+          description={
+            plan
+              ? `${plan.name} plan · catalog ${formatPlanPrice(plan)}. Resets on the 1st, UTC.`
+              : "Custom limits. Resets on the 1st, UTC."
+          }
+        />
         <div className="p-5">
+          <div className="mb-3">
+            <Badge tone={plan ? "accent" : "neutral"}>{plan?.name ?? "Custom"} plan</Badge>
+          </div>
           <p className="font-serif text-4xl font-semibold tabular-nums text-ink">
             {formatNumber(used)}
             <span className="ml-2 text-lg font-normal text-muted">of {formatNumber(quota.limit)} recipients</span>

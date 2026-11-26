@@ -91,6 +91,7 @@ export type AdminWorkspaceRow = {
   name: string;
   slug: string;
   status: WorkspaceRow["status"];
+  plan: WorkspaceRow["plan"];
   domains: { id: string; hostname: string; send_status: DomainStatus; inbound_status: InboundDomainStatus }[];
   verification: Verification;
   used: number;
@@ -118,6 +119,7 @@ export const listAdminWorkspaces = cache(async (): Promise<AdminWorkspaceRow[]> 
       name: w.name,
       slug: w.slug,
       status: w.status,
+      plan: w.plan,
       domains: ds,
       verification: summarizeVerification(ds),
       used: usageBy.get(w.id) ?? 0,

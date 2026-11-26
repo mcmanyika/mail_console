@@ -1,25 +1,72 @@
 "use client";
 
-import { inviteOwnerAction, setWorkspaceStatusAction, updateLimitAction } from "@/lib/actions/admin";
+import { useState } from "react";
+import { inviteOwnerAction, setWorkspaceStatusAction, updatePlanAction } from "@/lib/actions/admin";
 import { ActionField, ActionForm } from "@/components/ui/action-form";
 import { ConfirmButton } from "@/components/ui/confirm-dialog";
-import { Input } from "@/components/ui/form-controls";
+import { Input, Select } from "@/components/ui/form-controls";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { formatPlanPrice, PLAN_LIST, type WorkspacePlan } from "@/lib/billing/plans";
 
-export function UpdateLimitForm({ workspaceId, limit }: { workspaceId: string; limit: number }) {
+export function UpdatePlanForm({
+  workspaceId,
+  plan,
+  limit,
+  aiLimit,
+}: {
+  workspaceId: string;
+  plan: WorkspacePlan;
+  limit: number;
+  aiLimit: number;
+}) {
+  const [selected, setSelected] = useState<WorkspacePlan>(plan);
+
   return (
-    <ActionForm action={updateLimitAction}>
+    <ActionForm action={updatePlanAction}>
       <input type="hidden" name="workspaceId" value={workspaceId} />
-      <ActionField label="Monthly sending limit" name="limit" hint="Unique recipients per UTC month.">
-        <div className="flex gap-2">
-          <Input id="limit" name="limit" type="number" min={0} step={1} defaultValue={limit} className="max-w-40 tabular-nums" required />
-          <SubmitButton variant="secondary" pendingLabel="Saving…">
-            Save limit
-          </SubmitButton>
-        </div>
+      <ActionField label="Plan" name="plan" hint="Sets send/AI limits. Customers subscribe via Settings → Billing (Stripe).">
+        <Select
+          id="plan"
+          name="plan"
+          value={selected}
+          onChange={(e) => setSelected(e.target.value as WorkspacePlan)}
+          className="max-w-xs"
+        >
+          {PLAN_LIST.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name} — {formatPlanPrice(p)} · {p.monthlySendingLimit.toLocaleString()} sends
+            </option>
+          ))}
+          <option value="custom">Custom limits</option>
+        </Select>
       </ActionField>
+      {selected === "custom" ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <ActionField label="Monthly sending limit" name="limit" hint="Unique recipients per UTC month.">
+            <Input id="limit" name="limit" type="number" min={0} step={1} defaultValue={limit} className="tabular-nums" required />
+          </ActionField>
+          <ActionField label="Monthly AI limit" name="aiLimit">
+            <Input id="aiLimit" name="aiLimit" type="number" min={0} step={1} defaultValue={aiLimit} className="tabular-nums" required />
+          </ActionField>
+        </div>
+      ) : (
+        <>
+          <input type="hidden" name="limit" value={limit} />
+          <p className="text-[13px] text-muted">
+            Applying this plan sets send and AI limits to the package defaults.
+          </p>
+        </>
+      )}
+      <SubmitButton variant="secondary" pendingLabel="Saving…">
+        Save plan
+      </SubmitButton>
     </ActionForm>
   );
+}
+
+/** @deprecated Use UpdatePlanForm */
+export function UpdateLimitForm({ workspaceId, limit }: { workspaceId: string; limit: number }) {
+  return <UpdatePlanForm workspaceId={workspaceId} plan="custom" limit={limit} aiLimit={200} />;
 }
 
 export function InviteOwnerForm({ workspaceId, hasOwner }: { workspaceId: string; hasOwner: boolean }) {

@@ -8,6 +8,7 @@ apps send through a small API.
 * Outbound: transactional **outbox** (quota reserve → queue → worker → provider with idempotency key → settle).
 * Optional **OpenAI assist**: summarize threads, suggest replies, improve drafts (mailbox-grant scoped; per-workspace toggle + monthly AI quota). Enable in **Settings → AI** after setting `OPENAI_API_KEY`.
 * **Campaigns** (bulk email): audience lists (CSV), campaigns that fan out one message per contact through the existing outbox + monthly quota. Open **Campaigns** in the workspace rail.
+* **Plans + Stripe**: Starter $49 / Growth $149 / Scale $399. Admins can still assign a plan; customers subscribe from **Settings → Billing**. Successful Stripe payments are written to `payments` via `/api/webhooks/stripe` and shown in the billing dashboard.
 * API reference and curl examples: **[docs/api.md](docs/api.md)**.
 
 `DEMO_MODE=true` (the default in `.env.example`) uses a **mock Resend adapter**: no network calls to Resend and
@@ -26,7 +27,7 @@ cp .env.example .env.local        # keep DEMO_MODE=true
 npm run db:start                  # supabase start — prints API URL, anon key, service_role key
 # paste those into .env.local (NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY / SUPABASE_SERVICE_ROLE_KEY)
 
-npm run db:reset                  # applies supabase/migrations/00001…00004 + supabase/seed.sql (demo data) — LOCAL ONLY
+npm run db:reset                  # applies supabase/migrations + supabase/seed.sql (demo data) — LOCAL ONLY
 npm run dev                       # http://localhost:3000
 ```
 
@@ -77,6 +78,10 @@ Authoritative list with comments: [`.env.example`](.env.example).
 | `API_KEY_PEPPER` | yes | ≥ 32 random chars; rotating it invalidates all API keys + invites |
 | `OPENAI_API_KEY` | optional | enables inbox AI (summarize / suggest reply / improve); enable per workspace in Settings → AI |
 | `OPENAI_MODEL` | optional | default `gpt-4o-mini` |
+| `STRIPE_SECRET_KEY` | optional | enables Checkout + Customer Portal |
+| `STRIPE_WEBHOOK_SECRET` | optional (required with Stripe) | signing secret for `/api/webhooks/stripe` |
+| `STRIPE_PRICE_STARTER` / `_GROWTH` / `_SCALE` | optional (required with Stripe) | recurring Price IDs matching catalog plans |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | optional | not required for server Checkout redirects |
 | `API_RATE_LIMIT_PER_MINUTE` | optional | default 60 per API key |
 | `OUTBOX_BATCH_SIZE`, `OUTBOX_MAX_ATTEMPTS`, `OUTBOX_LEASE_SECONDS`, `MAX_ATTACHMENT_BYTES` | optional | worker tuning |
 
@@ -93,7 +98,12 @@ Authoritative list with comments: [`.env.example`](.env.example).
    `email.received`, `email.sent`, `email.delivered`, `email.delivery_delayed`, `email.bounced`,
    `email.complained`, `email.failed`, `email.suppressed`, `domain.created`, `domain.updated`. Copy the signing
    secret into `RESEND_WEBHOOK_SECRET`.
-5. Add the workspace domain in the console (suggested `mail.<apex>`), publish the DNS records it shows
+5. **Stripe (billing):** create Products/Prices for Starter / Growth / Scale, set `STRIPE_PRICE_*` +
+   `STRIPE_SECRET_KEY`. Add webhook endpoint `https://<your-domain>/api/webhooks/stripe` for
+   `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`,
+   `customer.subscription.deleted`, `charge.refunded`. Copy the signing secret to `STRIPE_WEBHOOK_SECRET`.
+   Enable the Customer Portal in Stripe Dashboard (invoices + payment methods).
+6. Add the workspace domain in the console (suggested `mail.<apex>`), publish the DNS records it shows
    (SPF/DKIM for sending, MX for receiving), then **Verify**.
 
 ## Resend documentation used

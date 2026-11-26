@@ -43,11 +43,18 @@ async function LoginLink({ searchParams }: { searchParams: SP }) {
   if (first(sp.email)) qs.set("email", first(sp.email) as string);
   const suffix = qs.size ? `?${qs}` : "";
   return (
-    <>
-      Already have an account?{" "}
-      <Link href={suffix ? `/${suffix}` : "/"} className="font-medium text-accent hover:underline">
-        Sign in
-      </Link>
-    </>
+    <div className="space-y-2">
+      <p>
+        Already have an account?{" "}
+        <Link href={suffix ? `/${suffix}` : "/"} className="font-medium text-accent hover:underline">
+          Sign in
+        </Link>
+      </p>
+      <p>
+        <Link href="/packages" className="font-medium text-accent hover:underline">
+          View packages
+        </Link>
+      </p>
+    </div>
   );
 }

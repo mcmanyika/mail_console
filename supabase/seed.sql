@@ -67,10 +67,10 @@ values ('a0000000-0000-4000-8000-000000000001')
 on conflict do nothing;
 
 -- ---- workspaces -------------------------------------------------------------
-insert into public.workspaces (id, name, slug, status, monthly_sending_limit) values
-  ('b0000000-0000-4000-8000-000000000001', 'Overflow Connections', 'overflow-connections', 'active', 5000),
-  ('b0000000-0000-4000-8000-000000000002', 'ProFaith',             'profaith',             'active', 3000),
-  ('b0000000-0000-4000-8000-000000000003', 'LangProfile',          'langprofile',          'active', 50);
+insert into public.workspaces (id, name, slug, status, plan, monthly_sending_limit, monthly_ai_limit) values
+  ('b0000000-0000-4000-8000-000000000001', 'Overflow Connections', 'overflow-connections', 'active', 'custom',  5000, 200),
+  ('b0000000-0000-4000-8000-000000000002', 'ProFaith',             'profaith',             'active', 'starter', 3000,  50),
+  ('b0000000-0000-4000-8000-000000000003', 'LangProfile',          'langprofile',          'active', 'custom',    50,  20);
 
 insert into public.workspace_memberships (id, workspace_id, user_id, role) values
   ('90000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002', 'owner'),

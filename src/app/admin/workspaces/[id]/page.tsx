@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { InviteOwnerForm, SuspendControls, UpdateLimitForm } from "@/components/admin/workspace-forms";
+import { InviteOwnerForm, SuspendControls, UpdatePlanForm } from "@/components/admin/workspace-forms";
+import { formatPlanPrice, getPlan } from "@/lib/billing/plans";
 import { VolumeChart } from "@/components/admin/volume-chart";
 import { AddDomainForm } from "@/components/settings/domain-forms";
 import { DomainCard } from "@/components/settings/domain-card";
@@ -53,9 +54,10 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
           <span className="flex flex-wrap items-center gap-3">
             {w.name}
             <Badge tone={suspended ? "danger" : w.status === "active" ? "success" : "warn"}>{w.status}</Badge>
+            <Badge tone="accent">{getPlan(w.plan)?.name ?? "Custom"}{getPlan(w.plan) ? ` · ${formatPlanPrice(getPlan(w.plan)!)}` : ""}</Badge>
           </span>
         }
-        description="Platform view. You can manage status, limits, invitations and domains here; message content is not visible to platform admins."
+        description="Platform view. You can manage status, plan, invitations and domains here; message content is not visible to platform admins."
         actions={<SuspendControls workspaceId={w.id} name={w.name} status={w.status} />}
       />
 
@@ -84,7 +86,12 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
                 {formatNumber(d.quota.settled)} submitted · {formatNumber(d.quota.reserved)} reserved · {formatNumber(d.quota.remaining)} remaining
               </p>
             </div>
-            <UpdateLimitForm workspaceId={w.id} limit={w.monthly_sending_limit} />
+            <UpdatePlanForm
+              workspaceId={w.id}
+              plan={w.plan}
+              limit={w.monthly_sending_limit}
+              aiLimit={w.monthly_ai_limit}
+            />
           </div>
         </Panel>
 

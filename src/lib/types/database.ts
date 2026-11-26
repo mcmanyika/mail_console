@@ -63,17 +63,43 @@ export type ProfileRow = {
 
 export type PlatformAdminRow = { user_id: string; created_at: string };
 
+export type WorkspacePlan = "starter" | "growth" | "scale" | "custom";
+
 export type WorkspaceRow = {
   id: string;
   name: string;
   slug: string;
   status: WorkspaceStatus;
+  plan: WorkspacePlan;
   monthly_sending_limit: number;
   ai_enabled: boolean;
   ai_instructions: string | null;
   monthly_ai_limit: number;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  billing_email: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type PaymentStatus = "succeeded" | "pending" | "failed" | "refunded";
+
+export type PaymentRow = {
+  id: string;
+  workspace_id: string;
+  stripe_event_id: string;
+  stripe_checkout_session_id: string | null;
+  stripe_payment_intent_id: string | null;
+  stripe_invoice_id: string | null;
+  stripe_customer_id: string | null;
+  amount_cents: number;
+  currency: string;
+  status: PaymentStatus;
+  plan: WorkspacePlan | null;
+  description: string | null;
+  receipt_url: string | null;
+  paid_at: string;
+  created_at: string;
 };
 
 export type WorkspaceMembershipRow = {
@@ -390,7 +416,32 @@ export type Database = {
       platform_admins: TableDef<PlatformAdminRow, "created_at">;
       workspaces: TableDef<
         WorkspaceRow,
-        "id" | "status" | "monthly_sending_limit" | "ai_enabled" | "ai_instructions" | "monthly_ai_limit" | Ts
+        | "id"
+        | "status"
+        | "plan"
+        | "monthly_sending_limit"
+        | "ai_enabled"
+        | "ai_instructions"
+        | "monthly_ai_limit"
+        | "stripe_customer_id"
+        | "stripe_subscription_id"
+        | "billing_email"
+        | Ts
+      >;
+      payments: TableDef<
+        PaymentRow,
+        | "id"
+        | "stripe_checkout_session_id"
+        | "stripe_payment_intent_id"
+        | "stripe_invoice_id"
+        | "stripe_customer_id"
+        | "currency"
+        | "status"
+        | "plan"
+        | "description"
+        | "receipt_url"
+        | "paid_at"
+        | "created_at"
       >;
       workspace_memberships: TableDef<
         WorkspaceMembershipRow,

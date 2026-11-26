@@ -122,3 +122,26 @@ export function getOpenAiConfig(): { apiKey: string; model: string } {
     model: process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini",
   };
 }
+
+/** SERVER ONLY. Stripe billing — Checkout + webhooks. */
+export function isStripeConfigured(): boolean {
+  return Boolean(process.env.STRIPE_SECRET_KEY?.trim() && process.env.STRIPE_WEBHOOK_SECRET?.trim());
+}
+
+export function getStripeConfig(): {
+  secretKey: string;
+  webhookSecret: string;
+  publishableKey: string | null;
+  priceIds: { starter: string | null; growth: string | null; scale: string | null };
+} {
+  return {
+    secretKey: required("STRIPE_SECRET_KEY", process.env.STRIPE_SECRET_KEY?.trim()),
+    webhookSecret: required("STRIPE_WEBHOOK_SECRET", process.env.STRIPE_WEBHOOK_SECRET?.trim()),
+    publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim() || null,
+    priceIds: {
+      starter: process.env.STRIPE_PRICE_STARTER?.trim() || null,
+      growth: process.env.STRIPE_PRICE_GROWTH?.trim() || null,
+      scale: process.env.STRIPE_PRICE_SCALE?.trim() || null,
+    },
+  };
+}

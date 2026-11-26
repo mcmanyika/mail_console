@@ -89,7 +89,13 @@ export async function createWorkspace(
 
   const { data: ws, error } = await ctx.admin
     .from("workspaces")
-    .insert({ name: input.name, slug, status: "active", monthly_sending_limit: input.monthlySendingLimit })
+    .insert({
+      name: input.name,
+      slug,
+      status: "active",
+      plan: "custom",
+      monthly_sending_limit: input.monthlySendingLimit,
+    })
     .select("*")
     .single();
   if (error || !ws) {

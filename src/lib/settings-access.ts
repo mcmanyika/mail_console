@@ -1,7 +1,15 @@
 import { roleAtLeast } from "@/lib/auth/authz";
 import type { WorkspaceRole } from "@/lib/types/database";
 
-export type SettingsSection = "domains" | "mailboxes" | "team" | "templates" | "integrations" | "usage" | "ai";
+export type SettingsSection =
+  | "domains"
+  | "mailboxes"
+  | "team"
+  | "templates"
+  | "integrations"
+  | "usage"
+  | "ai"
+  | "billing";
 
 type SectionDef = { key: SettingsSection; label: string; description: string; minRole: WorkspaceRole };
 
@@ -10,6 +18,7 @@ type SectionDef = { key: SettingsSection; label: string; description: string; mi
  * independently of the navigation (hiding a link is never the check).
  *   - Templates, Usage, and AI are readable by every member (RLS allows it);
  *     editing templates / AI settings needs admin.
+ *   - Billing is admin+: plan checkout + payment history from Stripe webhooks.
  *   - Everything else is owner/admin only.
  * NOTE: none of these grant access to message content — that needs a mailbox grant.
  */
@@ -20,6 +29,7 @@ export const SETTINGS_SECTIONS: SectionDef[] = [
   { key: "templates", label: "Templates", description: "Reusable subjects and bodies", minRole: "member" },
   { key: "ai", label: "AI", description: "Summarize threads and draft replies with OpenAI", minRole: "member" },
   { key: "integrations", label: "Integrations", description: "API keys for transactional sending", minRole: "admin" },
+  { key: "billing", label: "Billing", description: "Plans, Stripe checkout, and payment history", minRole: "admin" },
   { key: "usage", label: "Usage", description: "Monthly sending against your limit", minRole: "member" },
 ];
 

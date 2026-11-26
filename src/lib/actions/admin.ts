@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { writeAudit } from "@/lib/audit";
+import { isPlanId, planLimits, PLANS, type PlanId } from "@/lib/billing/plans";
 import { generateInviteToken } from "@/lib/crypto/api-keys";
 import { requirePlatformAdminAction } from "@/lib/data/workspace";
 import { getRequestAppUrl } from "@/lib/env";
@@ -21,7 +22,7 @@ const createClientSchema = z.object({
     .string()
     .trim()
     .regex(/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/, "Lowercase letters, numbers and hyphens only"),
-  limit: z.coerce.number().int("Whole numbers only").min(0).max(MAX_LIMIT),
+  plan: z.enum(["starter", "growth", "scale"]),
   ownerEmail: z.string().trim().toLowerCase().email("Enter the owner's email address"),
 });
 
@@ -63,7 +64,7 @@ export async function createClientAction(_prev: ActionState, formData: FormData)
     const parsed = createClientSchema.safeParse({
       name,
       slug: formString(formData, "slug") || slugify(name),
-      limit: formString(formData, "limit") || "3000",
+      plan: formString(formData, "plan") || "growth",
       ownerEmail: formString(formData, "ownerEmail"),
     });
     if (!parsed.success) {
@@ -72,10 +73,18 @@ export async function createClientAction(_prev: ActionState, formData: FormData)
       return fail("Check the highlighted fields.", fieldErrors);
     }
     const v = parsed.data;
+    const limits = planLimits(v.plan);
     const admin = createAdminClient();
     const { data: ws, error } = await admin
       .from("workspaces")
-      .insert({ name: v.name, slug: v.slug, status: "active", monthly_sending_limit: v.limit })
+      .insert({
+        name: v.name,
+        slug: v.slug,
+        status: "active",
+        plan: v.plan,
+        monthly_sending_limit: limits.monthly_sending_limit,
+        monthly_ai_limit: limits.monthly_ai_limit,
+      })
       .select("id, slug")
       .single();
     if (error || !ws) {
@@ -94,7 +103,12 @@ export async function createClientAction(_prev: ActionState, formData: FormData)
       action: "workspace.created",
       resourceType: "workspace",
       resourceId: ws.id,
-      metadata: { limit: v.limit },
+      metadata: {
+        plan: v.plan,
+        limit: limits.monthly_sending_limit,
+        ai_limit: limits.monthly_ai_limit,
+        price_monthly_usd: PLANS[v.plan].priceMonthlyUsd,
+      },
     });
     await writeAudit(admin, {
       workspaceId: ws.id,
@@ -208,27 +222,92 @@ export async function setWorkspaceStatusAction(formData: FormData): Promise<void
   redirect(`/admin/workspaces/${workspaceId}`);
 }
 
-export async function updateLimitAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+/** Apply a catalog plan (sets send + AI limits) or a custom send limit. */
+export async function updatePlanAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return guarded(async () => {
     const { user } = await requirePlatformAdminAction();
     const workspaceId = formString(formData, "workspaceId");
-    const limit = z.coerce.number().int().min(0).max(MAX_LIMIT).safeParse(formString(formData, "limit"));
-    if (!limit.success) return fail("Enter a whole number between 0 and 10,000,000.", { limit: "Invalid limit" });
+    const planRaw = formString(formData, "plan");
     const admin = createAdminClient();
-    const { data: before } = await admin.from("workspaces").select("monthly_sending_limit").eq("id", workspaceId).maybeSingle();
+    const { data: before } = await admin
+      .from("workspaces")
+      .select("plan, monthly_sending_limit, monthly_ai_limit")
+      .eq("id", workspaceId)
+      .maybeSingle();
     if (!before) return fail("Workspace not found.");
-    const { error } = await admin.from("workspaces").update({ monthly_sending_limit: limit.data }).eq("id", workspaceId);
+
+    if (planRaw === "custom") {
+      const limit = z.coerce.number().int().min(0).max(MAX_LIMIT).safeParse(formString(formData, "limit"));
+      if (!limit.success) return fail("Enter a whole number between 0 and 10,000,000.", { limit: "Invalid limit" });
+      const aiLimit = z.coerce.number().int().min(0).max(100_000).safeParse(formString(formData, "aiLimit") || String(before.monthly_ai_limit));
+      if (!aiLimit.success) return fail("Enter a valid AI limit.", { aiLimit: "Invalid" });
+      const { error } = await admin
+        .from("workspaces")
+        .update({
+          plan: "custom",
+          monthly_sending_limit: limit.data,
+          monthly_ai_limit: aiLimit.data,
+        })
+        .eq("id", workspaceId);
+      if (error) throw new Error(error.message);
+      await writeAudit(admin, {
+        workspaceId,
+        actorUserId: user.id,
+        action: "workspace.plan_changed",
+        resourceType: "workspace",
+        resourceId: workspaceId,
+        metadata: {
+          from_plan: before.plan,
+          to_plan: "custom",
+          from_limit: before.monthly_sending_limit,
+          to_limit: limit.data,
+          from_ai_limit: before.monthly_ai_limit,
+          to_ai_limit: aiLimit.data,
+        },
+      });
+      revalidatePath("/admin");
+      revalidatePath(`/admin/workspaces/${workspaceId}`);
+      return ok("Custom limits saved.");
+    }
+
+    if (!isPlanId(planRaw)) return fail("Choose a plan.", { plan: "Pick Starter, Growth, or Scale" });
+    const plan = planRaw as PlanId;
+    const limits = planLimits(plan);
+    const { error } = await admin
+      .from("workspaces")
+      .update({
+        plan,
+        monthly_sending_limit: limits.monthly_sending_limit,
+        monthly_ai_limit: limits.monthly_ai_limit,
+      })
+      .eq("id", workspaceId);
     if (error) throw new Error(error.message);
     await writeAudit(admin, {
       workspaceId,
       actorUserId: user.id,
-      action: "workspace.limit_changed",
+      action: "workspace.plan_changed",
       resourceType: "workspace",
       resourceId: workspaceId,
-      metadata: { from: before.monthly_sending_limit, to: limit.data },
+      metadata: {
+        from_plan: before.plan,
+        to_plan: plan,
+        from_limit: before.monthly_sending_limit,
+        to_limit: limits.monthly_sending_limit,
+        from_ai_limit: before.monthly_ai_limit,
+        to_ai_limit: limits.monthly_ai_limit,
+        price_monthly_usd: PLANS[plan].priceMonthlyUsd,
+      },
     });
     revalidatePath("/admin");
     revalidatePath(`/admin/workspaces/${workspaceId}`);
-    return ok("Monthly limit updated.");
+    return ok(`${PLANS[plan].name} plan applied (${PLANS[plan].priceMonthlyUsd}/mo catalog).`);
   });
+}
+
+/** Custom send-limit shortcut (sets plan to custom). */
+export async function updateLimitAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const next = new FormData();
+  for (const [k, v] of formData.entries()) next.set(k, v);
+  next.set("plan", "custom");
+  return updatePlanAction(_prev, next);
 }
