@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { InviteMemberForm, RoleSelect } from "@/components/settings/team-forms";
 import { SectionDenied } from "@/components/settings/section-denied";
@@ -27,6 +28,8 @@ export default function TeamPage({ params }: { params: Promise<{ slug: string }>
 }
 
 async function Body({ params }: { params: Promise<{ slug: string }> }) {
+  // Invite expiry / "joined" relative times — opt into request time.
+  await connection();
   const { slug } = await params;
   const gate = await gateSection(slug, "team");
   if (!gate.allowed) return <SectionDenied slug={slug} section="Team" />;

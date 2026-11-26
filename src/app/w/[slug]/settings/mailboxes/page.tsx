@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Mail } from "lucide-react";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { CreateMailboxForm, GrantRow } from "@/components/settings/mailbox-forms";
 import { SectionDenied } from "@/components/settings/section-denied";
@@ -31,6 +32,7 @@ export default function MailboxesPage({ params }: { params: Promise<{ slug: stri
 }
 
 async function Body({ params }: { params: Promise<{ slug: string }> }) {
+  await connection();
   const { slug } = await params;
   const gate = await gateSection(slug, "mailboxes");
   if (!gate.allowed) return <SectionDenied slug={slug} section="Mailbox" />;

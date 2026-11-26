@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { VolumeChart } from "@/components/admin/volume-chart";
 import { Alert } from "@/components/ui/alert";
@@ -25,6 +26,7 @@ export default function UsagePage({ params }: { params: Promise<{ slug: string }
 }
 
 async function Body({ params }: { params: Promise<{ slug: string }> }) {
+  await connection();
   const { slug } = await params;
   const { ctx } = await gateSection(slug, "usage");
   const { quota, history } = await getUsage(ctx);

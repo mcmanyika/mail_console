@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { FileText } from "lucide-react";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { EditableTemplate, TemplateForm } from "@/components/settings/template-forms";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ export default function TemplatesPage({ params }: { params: Promise<{ slug: stri
 }
 
 async function Body({ params }: { params: Promise<{ slug: string }> }) {
+  await connection();
   const { slug } = await params;
   const { ctx } = await gateSection(slug, "templates");
   const canEdit = roleAtLeast(ctx.role, "admin");

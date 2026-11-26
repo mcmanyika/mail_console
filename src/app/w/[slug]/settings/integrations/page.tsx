@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { KeyRound } from "lucide-react";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { CreateIntegrationForm } from "@/components/settings/integration-forms";
 import { SectionDenied } from "@/components/settings/section-denied";
@@ -28,6 +29,7 @@ export default function IntegrationsPage({ params }: { params: Promise<{ slug: s
 }
 
 async function Body({ params }: { params: Promise<{ slug: string }> }) {
+  await connection();
   const { slug } = await params;
   const gate = await gateSection(slug, "integrations");
   if (!gate.allowed) return <SectionDenied slug={slug} section="Integration" />;
